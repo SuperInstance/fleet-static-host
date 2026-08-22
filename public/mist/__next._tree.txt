@@ -1,12 +1,5 @@
 :HL["/mist/_next/static/chunks/233p45nuh4m5b.css","style"]
-<<<<<<< HEAD
-:HL["/mist/_next/static/chunks/3v6mkz-bdw4sp.css","style"]
-:HL["/mist/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
-:HL["/mist/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
-0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"YKzb2J6KVDhme3n2r2eeM"}
-=======
 :HL["/mist/_next/static/chunks/21axd_l141q1a.css","style"]
 :HL["/mist/_next/static/media/797e433ab948586e-s.p.0r6juujl39pe6.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
 :HL["/mist/_next/static/media/caa3a2e1cccd8315-s.p.0wgildi0cnwt9.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
-0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"NaHi_9_0_3B_p5QNAW_yX"}
->>>>>>> 9fe738e (mist: sensory upgrade build — 17 SFX/ambients, title art, TTS-wired bundle)
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"JvI6jXcWjZryv1MjfZ9Li"}

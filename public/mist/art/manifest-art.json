@@ -1,0 +1,210 @@
+{
+ "style": "children's storybook illustration, soft warm pastel palette, cute rounded shapes, clean soft outlines, cozy hand-painted texture, gentle warm lighting, kid-friendly",
+ "seedBase": 4242,
+ "assets": [
+  {
+   "name": "char_mist_sit",
+   "path": "art/char_mist_sit.png",
+   "seed": 4242,
+   "size": 768
+  },
+  {
+   "name": "char_mist_run",
+   "path": "art/char_mist_run.png",
+   "seed": 4243,
+   "size": 768
+  },
+  {
+   "name": "char_mist_bark",
+   "path": "art/char_mist_bark.png",
+   "seed": 4244,
+   "size": 768
+  },
+  {
+   "name": "char_bark_sit",
+   "path": "art/char_bark_sit.png",
+   "seed": 4245,
+   "size": 768
+  },
+  {
+   "name": "char_bark_teach",
+   "path": "art/char_bark_teach.png",
+   "seed": 4246,
+   "size": 768
+  },
+  {
+   "name": "char_sheep_wooly",
+   "path": "art/char_sheep_wooly.png",
+   "seed": 4247,
+   "size": 768
+  },
+  {
+   "name": "char_sheep_merino",
+   "path": "art/char_sheep_merino.png",
+   "seed": 4248,
+   "size": 768
+  },
+  {
+   "name": "char_sheep_suffolk",
+   "path": "art/char_sheep_suffolk.png",
+   "seed": 4249,
+   "size": 768
+  },
+  {
+   "name": "char_ram",
+   "path": "art/char_ram.png",
+   "seed": 4250,
+   "size": 768
+  },
+  {
+   "name": "tile_grass",
+   "path": "art/tile_grass.png",
+   "seed": 4251,
+   "size": 512
+  },
+  {
+   "name": "tile_field",
+   "path": "art/tile_field.png",
+   "seed": 4252,
+   "size": 512
+  },
+  {
+   "name": "tile_water",
+   "path": "art/tile_water.png",
+   "seed": 4253,
+   "size": 512
+  },
+  {
+   "name": "tile_tree",
+   "path": "art/tile_tree.png",
+   "seed": 4254,
+   "size": 512
+  },
+  {
+   "name": "tile_rock",
+   "path": "art/tile_rock.png",
+   "seed": 4255,
+   "size": 512
+  },
+  {
+   "name": "tile_fence",
+   "path": "art/tile_fence.png",
+   "seed": 4256,
+   "size": 512
+  },
+  {
+   "name": "tile_gate",
+   "path": "art/tile_gate.png",
+   "seed": 4257,
+   "size": 512
+  },
+  {
+   "name": "tile_barn",
+   "path": "art/tile_barn.png",
+   "seed": 4258,
+   "size": 512
+  },
+  {
+   "name": "tile_kennel",
+   "path": "art/tile_kennel.png",
+   "seed": 4259,
+   "size": 512
+  },
+  {
+   "name": "tile_flower",
+   "path": "art/tile_flower.png",
+   "seed": 4260,
+   "size": 512
+  },
+  {
+   "name": "tile_mushroom",
+   "path": "art/tile_mushroom.png",
+   "seed": 4261,
+   "size": 512
+  },
+  {
+   "name": "tile_cave",
+   "path": "art/tile_cave.png",
+   "seed": 4262,
+   "size": 512
+  },
+  {
+   "name": "tile_crystal",
+   "path": "art/tile_crystal.png",
+   "seed": 4263,
+   "size": 512
+  },
+  {
+   "name": "tile_campfire",
+   "path": "art/tile_campfire.png",
+   "seed": 4264,
+   "size": 512
+  },
+  {
+   "name": "tile_path",
+   "path": "art/tile_path.png",
+   "seed": 4265,
+   "size": 512
+  },
+  {
+   "name": "tile_mountain",
+   "path": "art/tile_mountain.png",
+   "seed": 4266,
+   "size": 512
+  },
+  {
+   "name": "tile_pen",
+   "path": "art/tile_pen.png",
+   "seed": 4267,
+   "size": 512
+  },
+  {
+   "name": "scene_hero",
+   "path": "art/scene_hero.jpg",
+   "seed": 4268,
+   "size": 896
+  },
+  {
+   "name": "scene_card_meadow",
+   "path": "art/scene_card_meadow.jpg",
+   "seed": 4269,
+   "size": 896
+  },
+  {
+   "name": "scene_card_forest",
+   "path": "art/scene_card_forest.jpg",
+   "seed": 4270,
+   "size": 896
+  },
+  {
+   "name": "scene_card_mountain",
+   "path": "art/scene_card_mountain.jpg",
+   "seed": 4271,
+   "size": 896
+  },
+  {
+   "name": "scene_lesson_meadow",
+   "path": "art/scene_lesson_meadow.jpg",
+   "seed": 4272,
+   "size": 896
+  },
+  {
+   "name": "scene_lesson_forest",
+   "path": "art/scene_lesson_forest.jpg",
+   "seed": 4273,
+   "size": 896
+  },
+  {
+   "name": "scene_lesson_fireside",
+   "path": "art/scene_lesson_fireside.jpg",
+   "seed": 4274,
+   "size": 896
+  },
+  {
+   "name": "scene_lesson_sky",
+   "path": "art/scene_lesson_sky.jpg",
+   "seed": 4275,
+   "size": 896
+  }
+ ]
+}
