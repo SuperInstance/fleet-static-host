@@ -1,2 +1,5 @@
 node_modules/
 .wrangler/
+.dev.vars
+.seedkey
+__pycache__/

@@ -1,0 +1,20 @@
+{
+  "name": "fleet-static-host",
+  "version": "2.0.0",
+  "description": "Fleet public shelf — static builds ride assets; content rides quilt (D1 cells).",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply quilt-fleet-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply quilt-fleet-db --remote",
+    "seed:build": "python3 seed/build_seed.py",
+    "seed:push": "bash seed/push.sh"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250810.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^4.118.0"
+  }
+}

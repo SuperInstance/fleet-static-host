@@ -1,9 +1,25 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "fleet-static-host",
+  "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
   "assets": {
     "directory": "./public",
-    "not_found_handling": "404-page"
-  }
+    "not_found_handling": "404-page",
+    "run_worker_first": [
+      "/",
+      "/api/*",
+      "/papers",
+      "/papers/*",
+      "/writings",
+      "/writings/*"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "quilt-fleet-db",
+      "database_id": "19d1d2f3-d6ef-48bb-9475-253f303bfb37"
+    }
+  ]
 }
