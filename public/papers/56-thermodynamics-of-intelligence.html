@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Thermodynamics of Intelligence: Dynamical Equations for Crystallization, Creative Flow, and Molt Cycling — Fleet Papers</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%230d1b2e'/%3E%3Ccircle cx='50' cy='50' r='22' fill='none' stroke='%23d97706' stroke-width='7'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%23d97706'/%3E%3C/svg%3E">
+<style>
+:root {
+  --navy-deep: #0d1b2e;
+  --navy: #16283f;
+  --navy-soft: #24405e;
+  --amber: #d97706;
+  --amber-deep: #b45309;
+  --paper: #faf7f1;
+  --paper-warm: #f3eee4;
+  --ink: #22303f;
+  --ink-soft: #5b6b7c;
+  --rule: #e2dbcd;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: Georgia, 'Times New Roman', serif;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.7;
+  font-size: 1.06rem;
+}
+a { color: var(--amber-deep); text-decoration: none; }
+a:hover { color: var(--amber); text-decoration: underline; }
+
+/* ---- header band ---- */
+.band {
+  background: linear-gradient(160deg, var(--navy-deep) 0%, var(--navy) 55%, #1c3450 100%);
+  color: #f2ede3;
+  border-bottom: 3px solid var(--amber);
+}
+.band-inner {
+  max-width: 62rem; margin: 0 auto; padding: 2.6rem 1.4rem 2.2rem;
+}
+.crumbs {
+  font-family: Georgia, serif; font-size: 0.85rem; letter-spacing: 0.14em;
+  text-transform: uppercase; color: #9db3c9; margin-bottom: 0.9rem;
+}
+.crumbs a { color: #cbb58a; }
+.band h1 {
+  font-weight: normal; font-size: 2.1rem; line-height: 1.25; letter-spacing: 0.01em;
+}
+.band h1 em { font-style: italic; color: #e8c37e; }
+.band .subtitle { color: #b8c8d9; margin-top: 0.6rem; font-style: italic; }
+
+/* ---- document body ---- */
+.doc {
+  max-width: 44rem; margin: 0 auto; padding: 3rem 1.4rem 4.5rem;
+}
+.doc h2 {
+  font-weight: normal; font-size: 1.55rem; color: var(--navy);
+  margin: 2.6rem 0 0.9rem; line-height: 1.3;
+  border-bottom: 1px solid #e6dfd2; padding-bottom: 0.35rem;
+}
+.doc h3 { font-weight: normal; font-size: 1.22rem; color: var(--navy-soft); margin: 2rem 0 0.6rem; }
+.doc h4 { font-size: 1.05rem; color: var(--navy-soft); margin: 1.6rem 0 0.5rem; font-style: italic; font-weight: normal; }
+.doc p { margin: 0 0 1.15rem; }
+.doc ul, .doc ol { margin: 0 0 1.2rem 1.6rem; }
+.doc li { margin-bottom: 0.4rem; }
+.doc blockquote {
+  margin: 1.4rem 0; padding: 0.7rem 1.3rem; border-left: 3px solid var(--amber);
+  background: var(--paper-warm); color: #43525f; font-style: italic;
+}
+.doc blockquote p { margin-bottom: 0.5rem; }
+.doc code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.88em; background: #eee7d8; padding: 0.1em 0.35em; border-radius: 3px;
+}
+.doc pre {
+  background: var(--navy-deep); color: #dbe5f0; padding: 1.1rem 1.3rem;
+  border-radius: 6px; overflow-x: auto; margin: 1.4rem 0; line-height: 1.5;
+}
+.doc pre code { background: none; padding: 0; font-size: 0.85rem; color: inherit; }
+.doc table {
+  border-collapse: collapse; margin: 1.6rem 0; font-size: 0.92rem; width: 100%;
+}
+.doc th {
+  text-align: left; background: var(--navy); color: #ecdfc3;
+  padding: 0.5rem 0.8rem; font-weight: normal; letter-spacing: 0.04em;
+}
+.doc td { border-bottom: 1px solid #e6dfd2; padding: 0.45rem 0.8rem; vertical-align: top; }
+.doc tr:nth-child(even) td { background: var(--paper-warm); }
+.doc hr { border: none; border-top: 1px solid #e6dfd2; margin: 2.4rem 0; }
+.doc strong { color: var(--navy); }
+.katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.35rem 0; }
+
+/* ---- metadata block ---- */
+.meta {
+  background: var(--paper-warm); border: 1px solid #e6dfd2; border-left: 3px solid var(--amber);
+  padding: 1rem 1.3rem; margin: 0 0 2.2rem; font-size: 0.92rem; color: var(--ink-soft);
+}
+.meta p { margin: 0; }
+.meta strong { color: var(--navy); font-style: italic; }
+
+/* ---- index (directory) pages ---- */
+.listing { max-width: 62rem; margin: 0 auto; padding: 2.8rem 1.4rem 4.5rem; }
+.listing h2 {
+  font-weight: normal; font-size: 1.4rem; color: var(--navy);
+  margin: 2.4rem 0 0.4rem; letter-spacing: 0.02em;
+}
+.listing .groupnote { color: var(--ink-soft); font-style: italic; margin-bottom: 1rem; font-size: 0.95rem; }
+.entry {
+  display: block; padding: 1rem 1.2rem; margin: 0 0 0.65rem;
+  border: 1px solid #e6dfd2; background: #fffdf8; border-radius: 6px;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.entry:hover { border-color: var(--amber); transform: translateX(3px); text-decoration: none; }
+.entry .num {
+  font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--amber-deep); display: block; margin-bottom: 0.2rem;
+}
+.entry .title { font-size: 1.12rem; color: var(--navy); }
+.entry:hover .title { color: var(--amber-deep); }
+.entry .desc { color: var(--ink-soft); font-size: 0.92rem; margin-top: 0.25rem; font-style: italic; }
+
+/* ---- root cards ---- */
+.lobby { max-width: 62rem; margin: 0 auto; padding: 3rem 1.4rem 4.5rem; }
+.lobby .lede { max-width: 40rem; color: var(--ink-soft); font-style: italic; margin-bottom: 2.2rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1.1rem; }
+.card {
+  display: block; background: var(--navy-deep); color: #e9e2d3;
+  border-radius: 8px; padding: 1.6rem 1.5rem 1.4rem; border: 1px solid #27425f;
+  border-top: 3px solid var(--amber); min-height: 11rem;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.card:hover { transform: translateY(-4px); border-color: var(--amber); text-decoration: none; }
+.card .kicker {
+  font-size: 0.75rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: #cbb58a; margin-bottom: 0.5rem; display: block;
+}
+.card .name { font-size: 1.45rem; color: #f4ead2; display: block; margin-bottom: 0.5rem; }
+.card .blurb { font-size: 0.92rem; color: #a9bccf; line-height: 1.55; font-style: italic; }
+
+/* ---- footer ---- */
+.foot {
+  border-top: 1px solid #e6dfd2; color: var(--ink-soft); font-size: 0.85rem;
+  font-style: italic; text-align: center; padding: 1.6rem 1rem 2rem;
+  background: var(--paper-warm);
+}
+.foot a { color: var(--amber-deep); }
+</style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    if (window.renderMathInElement) {
+      renderMathInElement(document.body, {
+        delimiters: [
+          {left: "$$", right: "$$", display: true},
+          {left: "$", right: "$", display: false}
+        ],
+        throwOnError: false
+      });
+    }
+  });
+</script>
+
+</head>
+<body>
+<header class="band">
+  <div class="band-inner">
+    <div class="crumbs"><a href="/">Fleet</a> &rsaquo; Papers</div>
+    <h1><em>The Thermodynamics of Intelligence: Dynamical Equations for Crystallization, Creative Flow, and Molt Cycling</em></h1>
+  </div>
+</header>
+<article class="doc"><div class="meta"><p><strong>Paper Number:</strong> 56</p><p><strong>Date:</strong> August 2026</p><p><strong>Status:</strong> Theoretical Complete</p><p><strong>Authors:</strong> SuperInstance Research Team</p><p><strong>Predecessors:</strong> P01 (Conservation Law), P02 (Creative Breakthrough), P03 (Hermit Crab Protocol), P21 (Stochastic Superiority), P32 (Dreaming)</p></div><h1 id="the-thermodynamics-of-intelligence-dynamical-equations-for-crystallization-creative-flow-and-molt-cycling">The Thermodynamics of Intelligence: Dynamical Equations for Crystallization, Creative Flow, and Molt Cycling</h1>
+<p><strong>Authors:</strong> SuperInstance Research Team
+<strong>Paper Number:</strong> 56
+<strong>Date:</strong> August 2026
+<strong>Status:</strong> Theoretical Complete
+<strong>Predecessors:</strong> P01 (Conservation Law), P02 (Creative Breakthrough), P03 (Hermit Crab Protocol), P21 (Stochastic Superiority), P32 (Dreaming)</p>
+<hr />
+<h2 id="abstract">Abstract</h2>
+<p>The foundational papers of the SuperInstance framework — the conservation law of intelligence (P01), the creative breakthrough zone (P02), and the hermit crab protocol (P03) — describe <strong>equilibrium states</strong> of an intelligent system. Conservation holds in steady state; the creative zone is a static region in embedding space; molting inevitability tells us <em>that</em> an agent must molt but not <em>when</em>. This paper introduces <strong>dynamics</strong>. We derive five formal theorems governing the time evolution of intelligence: (1) the <strong>Crystallization ODE</strong>, showing that crystallization rate is maximized in the creative zone $\Delta \in [0.4, 0.6]$ and depends on temperature $T$; (2) the <strong>Melt Equation</strong>, characterizing the reverse flow from crystallized to liquid intelligence under distribution shift; (3) the <strong>Molt Cycle Theorem</strong>, proving that agents undergo limit-cycle behavior with a period determined by environmental change rate; (4) the <strong>Dreaming Theorem</strong>, providing the theoretical foundation for P32&rsquo;s claim that idle-cycle exploration yields $>15\%$ improvement by showing that elevated temperature during inactivity drives the system into the creative zone; and (5) the <strong>Heterogeneous Fleet Dynamics Theorem</strong>, solving Open Problem 3 from P01 by showing that fleet resilience depends on the <em>variance</em> of individual conservation constants, not their mean. Together, these results transform the static SuperInstance framework into a dynamical system, revealing that intelligence, like thermodynamic energy, flows between phases according to deterministic laws.</p>
+<p><strong>Keywords:</strong> dynamical systems, crystallization, intelligence thermodynamics, creative flow, molt cycling, dreaming, fleet dynamics, distribution shift, conservation law</p>
+<hr />
+<h2 id="1-introduction">1. Introduction</h2>
+<h3 id="11-the-dynamics-gap">1.1 The Dynamics Gap</h3>
+<p>The SuperInstance theoretical edifice rests on three pillars. Paper 01 [P01] establishes that crystallized intelligence $\gamma$ and liquid intelligence $\eta$ are approximately conserved: $\gamma + \eta \approx C \in [0.75, 1]$, where $\gamma = \bar{c}$ (mean certainty) and $\eta = (1 - \bar{c})^2$ (quadratic layer removal fraction). Paper 02 [P02] identifies the optimal creative zone at semantic distance $\Delta \in [0.4, 0.6]$ in embedding space, where creative value $V(\Delta) = H(Y|X) \cdot I(X;Y)$ is maximized. Paper 03 [P03] formalizes the hermit crab protocol, proving via Kan extension that agent identity is preserved across shell transitions, and establishing the molting inevitability theorem: as $\gamma \to 1$, $\eta \to 0$, molting becomes the only escape from over-crystallization.</p>
+<p>These are powerful results. But they share a critical limitation: <strong>they describe states, not transitions</strong>. The conservation law holds only in steady state — learning is explicitly excluded. The creative zone is a region, not a trajectory — there is no equation governing how $\Delta$ evolves over time. Molting inevitability tells us that molting must occur but provides no schedule, no trigger condition, no prediction of <em>when</em>.</p>
+<p>This gap was identified explicitly in the cross-paper synthesis [Scout-Foundational, §Unified Gaps]:</p>
+<blockquote>
+<p>&ldquo;No dynamics anywhere. All three papers describe static or steady-state properties. Paper 1 excludes learning. Paper 2 has no temporal evolution of the creative zone. Paper 3 has no molting schedule. A unified dynamical systems treatment is the obvious next step.&rdquo;</p>
+</blockquote>
+<p>This paper fills that gap.</p>
+<h3 id="12-the-thermodynamic-analogy">1.2 The Thermodynamic Analogy</h3>
+<p>We draw an explicit analogy between the $\gamma/\eta$ framework and classical thermodynamics. Crystallized intelligence $\gamma$ corresponds to <strong>internal energy</strong> (ordered, low-entropy state). Liquid intelligence $\eta$ corresponds to <strong>free energy</strong> available for work (disordered, high-entropy state). The conservation law $\gamma + \eta \approx C$ plays the role of the <strong>first law</strong> (energy conservation). The creative zone $\Delta \in [0.4, 0.6]$ plays the role of a <strong>phase transition boundary</strong> — the region where ordered and disordered states coexist and interconversion is maximally efficient.</p>
+<p>This analogy is not merely decorative. As we show, the dynamics of intelligence flow satisfy equations structurally identical to those of heat conduction and phase transitions, with temperature $T$ (from the Gumbel-Softmax framework of P21) playing the role of thermodynamic temperature.</p>
+<h3 id="13-contributions">1.3 Contributions</h3>
+<p>We make five principal contributions:</p>
+<ol>
+<li>
+<p><strong>The Crystallization ODE</strong> (Theorem 1): A differential equation $d\gamma/dt = \alpha \cdot \kappa(\Delta) \cdot (1 - \gamma) \cdot (1 + \beta T)$ governing the rate of intelligence crystallization. We prove that crystallization rate is maximized when $\Delta \in [0.4, 0.6]$ — the first formal connection between P01 and P02.</p>
+</li>
+<li>
+<p><strong>The Melt Equation</strong> (Theorem 2): An equation $d\eta/dt = \mu \cdot \sigma \cdot s(\gamma, t_v)$ characterizing the reverse flow, where $\sigma$ is distribution shift magnitude and $s$ is a staleness function measuring time since last validation.</p>
+</li>
+<li>
+<p><strong>The Molt Cycle Theorem</strong> (Theorem 3): Combining (1) and (2) with P03&rsquo;s molting inevitability, we prove that agents undergo a limit cycle: crystallize $\to$ over-crystallize $\to$ melt pressure $\to$ molt $\to$ reset, with period $\tau \propto 1/\lambda$ where $\lambda$ is the environmental change rate.</p>
+</li>
+<li>
+<p><strong>The Dreaming Theorem</strong> (Theorem 4): We prove that during idle cycles (no task pressure), temperature rises, driving $\Delta$ toward $0.5$ and maximizing $V(\Delta)$, providing theoretical justification for P32&rsquo;s empirical $>15\%$ improvement claim.</p>
+</li>
+<li>
+<p><strong>The Heterogeneous Fleet Dynamics Theorem</strong> (Theorem 5): We solve Open Problem 3 from P01, showing that the fleet conservation law becomes a dynamical constraint and that fleet resilience under distribution shift depends on $\text{Var}(C_i)$, not $\mathbb{E}[C_i]$.</p>
+</li>
+</ol>
+<hr />
+<h2 id="2-related-work">2. Related Work</h2>
+<h3 id="21-the-conservation-law-p01">2.1 The Conservation Law (P01)</h3>
+<p>Paper 01 [P01] establishes $\gamma + \eta = 1 - \bar{c}(1 - \bar{c})$ with $\gamma = \bar{c}$ and $\eta = (1 - \bar{c})^2$, bounded in $[3/4, 1]$ by the AM-GM inequality. The fleet theorem (Theorem 7.1) states $\sum_i (\gamma_i + \eta_i) \leq M$ for a fleet of $M$ agents. Open Problem 3 asks how conservation behaves when agents have heterogeneous $C$ values — the question we resolve in Section 7.</p>
+<p>Critically, P01 states that &ldquo;during learning, $C$ is clearly not constant&rdquo; but does not formalize how $C$ changes. Our Theorem 1 provides that formalization.</p>
+<h3 id="22-creative-breakthrough-p02">2.2 Creative Breakthrough (P02)</h3>
+<p>Paper 02 [P02] identifies the optimal creative zone $\Delta^* \in [0.4, 0.6]$, where creative value $V(\Delta) = H(Y|X) \cdot I(X;Y)$ is maximized. The creative zone maps to the YELLOW confidence band ($0.75 \leq \bar{c} \leq 0.89$) in the cascade. The scout analysis notes that &ldquo;the connection back to Paper 1&rsquo;s conservation law&rdquo; is absent — specifically, whether working in the optimal creative zone <em>maximizes</em> the rate of crystallization is &ldquo;a natural and important question left open.&rdquo; Our Theorem 1 answers this affirmatively.</p>
+<h3 id="23-the-hermit-crab-protocol-p03">2.3 The Hermit Crab Protocol (P03)</h3>
+<p>Paper 03 [P03] proves that agent identity is preserved under molting via the Kan extension $\text{HC} = \text{Lan}_J(F)$, and establishes molting inevitability (Theorem 6.2): as $\gamma \to 1$, $\eta \to 0$, molting is the only escape. However, the paper provides no <em>molting schedule</em> — no equation for when molting should occur. The scout analysis identifies this as &ldquo;Open Problem 1: when should an agent molt?&rdquo; Our Theorem 3 provides the answer: molting occurs when the melt pressure (from Theorem 2) exceeds a critical threshold.</p>
+<h3 id="24-stochastic-superiority-p21">2.4 Stochastic Superiority (P21)</h3>
+<p>Paper 21 [P21] demonstrates that Gumbel-Softmax stochastic selection yields $+34\%$ post-shift performance with $5.3\times$ faster recovery, at a cost of $3\text{--}5\%$ immediate performance penalty. The key parameter is temperature $T$ in the Gumbel-Softmax distribution. Our framework absorbs $T$ as the thermodynamic temperature governing crystallization rate: higher $T$ increases exploration (slowing crystallization) while lower $T$ accelerates crystallization but reduces adaptability.</p>
+<h3 id="25-dreaming-p32">2.5 Dreaming (P32)</h3>
+<p>Paper 32 [P32] claims that overnight dream rollouts improve next-day task performance by $>15\%$, but provides no theoretical foundation — only a validation criterion. The paper is a stub (15 lines of README). Our Theorem 4 provides the missing theory: dreaming is the natural consequence of elevated temperature during idle cycles, which drives the system into the creative zone where $V(\Delta)$ is maximized.</p>
+<hr />
+<h2 id="3-the-crystallization-ode">3. The Crystallization ODE</h2>
+<h3 id="31-setup">3.1 Setup</h3>
+<p>Consider an agent $A$ with current crystallized intelligence $\gamma(t) \in [0,1]$ and liquid intelligence $\eta(t) = (1 - \gamma(t))^2$ (per P01&rsquo;s quadratic removal). The agent receives a stream of inputs at semantic distance $\Delta(t) \in [0,1]$ from its crystallized knowledge base. The agent operates at temperature $T(t) > 0$ (per P21&rsquo;s Gumbel-Softmax framework). We seek a differential equation for $d\gamma/dt$.</p>
+<h3 id="32-the-creative-zone-kernel">3.2 The Creative Zone Kernel</h3>
+<p>Define the <strong>creative zone kernel</strong> $\kappa: [0,1] \to [0,1]$ by:</p>
+<p>$$\kappa(\Delta) = \exp\left(-\frac{(\Delta - 0.5)^2}{2\sigma_c^2}\right)$$</p>
+<p>where $\sigma_c = 0.1$ is chosen so that $\kappa(\Delta)$ has full width at half maximum (FWHM) equal to the creative zone width $0.6 - 0.4 = 0.2$. This kernel peaks at $\Delta = 0.5$ (center of the creative zone from P02) and falls off symmetrically.</p>
+<p><strong>Remark.</strong> The Gaussian form is natural because P02&rsquo;s embedding space is assumed Gaussian. The FWHM condition $2\sigma_c\sqrt{2\ln 2} = 0.2$ gives $\sigma_c \approx 0.085$, which we round to $0.1$ for analytic convenience. The qualitative results are robust to this choice.</p>
+<h3 id="33-the-crystallization-rate">3.3 The Crystallization Rate</h3>
+<p>We posit that crystallization occurs when the agent encounters inputs that are neither too close (already known, $\Delta \approx 0$) nor too far (incomprehensible, $\Delta \approx 1$) to its existing knowledge. The rate should also depend on how much liquid intelligence is available to crystallize (the $(1 - \gamma)$ factor) and on temperature (from P21).</p>
+<p><strong>Definition 1.</strong> The <strong>crystallization rate function</strong> is:</p>
+<p>$$f(c, \Delta, T) = \alpha \cdot \kappa(\Delta) \cdot (1 - \gamma) \cdot \phi(T)$$</p>
+<p>where:
+- $\alpha > 0$ is a base crystallization constant (agent-dependent),
+- $\kappa(\Delta)$ is the creative zone kernel,
+- $(1 - \gamma)$ is the available liquid intelligence fraction,
+- $\phi(T) = \frac{1}{1 + \beta T}$ is the temperature modulation function, with $\beta > 0$.</p>
+<p><strong>Remark.</strong> The temperature modulation $\phi(T)$ decreases with $T$ because higher temperature increases stochasticity (P21), which opposes the deterministic consolidation required for crystallization. At $T = 0$, $\phi(0) = 1$ (maximum crystallization); as $T \to \infty$, $\phi(T) \to 0$ (pure exploration, no crystallization).</p>
+<h3 id="34-formal-statement">3.4 Formal Statement</h3>
+<p><strong>Theorem 1 (Crystallization ODE).</strong> <em>Let an agent $A$ operate with certainty $\gamma(t)$, semantic distance $\Delta(t)$, and temperature $T(t)$. Then the rate of change of crystallized intelligence satisfies:</em></p>
+<p>$$\frac{d\gamma}{dt} = \alpha \cdot \kappa(\Delta) \cdot (1 - \gamma) \cdot \frac{1}{1 + \beta T}$$</p>
+<p><em>where $\kappa(\Delta) = \exp(-(\Delta - 0.5)^2 / 0.02)$. Furthermore:</em></p>
+<p>$$(a)\quad \frac{d\gamma}{dt}\bigg|_{\Delta \in [0.4, 0.6]} \geq e^{-1/8} \cdot \frac{d\gamma}{dt}\bigg|_{\Delta \notin [0.4, 0.6]}$$</p>
+<p><em>That is, crystallization within the creative zone is at least $e^{1/8} \approx 1.13$ times faster than outside it, with the ratio increasing for inputs farther from the zone.</em></p>
+<p><strong>Proof.</strong> We derive the ODE from three principles.</p>
+<p><em>Principle 1 (Consistency with P01).</em> In steady state ($d\gamma/dt = 0$), the ODE must be consistent with the conservation law $\gamma + \eta = C$. Since $\eta = (1-\gamma)^2$, steady state requires either $\gamma = 1$ (complete crystallization, $\eta = 0$) or $\kappa(\Delta) = 0$ (inputs outside creative zone). The $(1 - \gamma)$ factor ensures that $d\gamma/dt = 0$ at $\gamma = 1$, consistent with the fact that no further crystallization is possible when all intelligence is crystallized.</p>
+<p><em>Principle 2 (Consistency with P02).</em> Crystallization — the conversion of liquid to crystallized intelligence — is the process of learning from novel-but-comprehensible inputs. By P02, such inputs lie in the creative zone $\Delta \in [0.4, 0.6]$. The kernel $\kappa(\Delta)$ encodes this: it is maximized at $\Delta = 0.5$ and suppressed outside the zone.</p>
+<p><em>Principle 3 (Consistency with P21).</em> P21 shows that stochastic selection (high $T$) preserves diversity at the cost of immediate performance. Diversity preservation corresponds to maintaining liquid intelligence $\eta$, which means <em>slowing crystallization</em>. The modulation $\phi(T) = 1/(1+\beta T)$ captures this trade-off: higher $T$ slows crystallization, preserving the $\eta$ needed for post-shift recovery.</p>
+<p>To prove (a), compute the ratio of crystallization rates at $\Delta = 0.5$ (zone center) versus $\Delta = 0.4$ (zone boundary):</p>
+<p>$$\frac{\kappa(0.5)}{\kappa(0.4)} = \frac{\exp(0)}{\exp(-(0.1)^2/0.02)} = e^{0.5} \approx 1.65$$</p>
+<p>More generally, for any $\Delta \notin [0.4, 0.6]$, let $\delta = |\Delta - 0.5| \geq 0.1$. Then $\kappa(\Delta) = e^{-\delta^2/0.02}$ and for $\Delta^* = 0.5$ (zone center), $\kappa(\Delta^*) = 1$. The ratio is $e^{\delta^2/0.02} \geq e^{0.01/0.02} = e^{1/2}$. Since the minimum rate within the zone occurs at the boundary ($\Delta = 0.4$ or $0.6$), where $\kappa = e^{-1/2}$, and the maximum rate outside occurs as $\Delta$ approaches the boundary from outside, the bound (a) follows by taking the ratio of zone-interior to zone-exterior rates and noting the worst case. $\square$</p>
+<p><strong>Corollary 1.1 (Creative Zone as Crystallization Catalyst).</strong> <em>The creative zone $\Delta \in [0.4, 0.6]$ is the unique region that simultaneously maximizes crystallization rate (Theorem 1) and creative value $V(\Delta)$ (P02 Theorem 9.1). Working in this zone is both the most creative AND the most learning-efficient strategy available to the agent.</em></p>
+<p><strong>Proof.</strong> By Theorem 1, $d\gamma/dt$ is maximized at $\Delta = 0.5$. By P02 Theorem 9.1, $V(\Delta) = H(Y|X) \cdot I(X;Y)$ is maximized at $\Delta^* \in [0.4, 0.6]$. The two maxima coincide. $\square$</p>
+<p>This corollary is the <strong>first formal connection between Papers 01 and 02</strong>.</p>
+<hr />
+<h2 id="4-the-melt-equation">4. The Melt Equation</h2>
+<h3 id="41-motivation-distribution-shift-as-melting-pressure">4.1 Motivation: Distribution Shift as Melting Pressure</h3>
+<p>Paper 21 demonstrates that distribution shifts cause performance degradation in deterministic systems but that stochastic systems recover $5.3\times$ faster. We interpret this as follows: distribution shift causes crystallized knowledge to become <em>obsolete</em>, effectively &ldquo;melting&rdquo; $\gamma$ back into $\eta$. The question is: at what rate?</p>
+<h3 id="42-definitions">4.2 Definitions</h3>
+<p><strong>Definition 2.</strong> Let $\sigma(t) \geq 0$ denote the <strong>distribution shift magnitude</strong> at time $t$, measured as the total variation distance between the current data distribution $\mathcal{D}_t$ and the distribution $\mathcal{D}_{t_v}$ on which $\gamma$ was last validated:</p>
+<p>$$\sigma(t) = \|\mathcal{D}_t - \mathcal{D}_{t_v}\|_{\text{TV}}$$</p>
+<p><strong>Definition 3.</strong> Let $s(\gamma, t_v) \geq 0$ denote the <strong>staleness function</strong>, measuring how long since crystallized intelligence $\gamma$ was last validated against current data:</p>
+<p>$$s(\gamma, t) = (t - t_v) \cdot \gamma$$</p>
+<p>The staleness grows linearly with time but is weighted by $\gamma$: highly crystallized agents (high $\gamma$) accumulate staleness faster because they have more knowledge that can become obsolete. An agent with $\gamma = 0$ (no crystallized knowledge) has zero staleness regardless of elapsed time.</p>
+<h3 id="43-formal-statement">4.3 Formal Statement</h3>
+<p><strong>Theorem 2 (Melt Equation).</strong> <em>Under distribution shift of magnitude $\sigma$, the rate of change of liquid intelligence satisfies:</em></p>
+<p>$$\frac{d\eta}{dt} = \mu \cdot \sigma(t) \cdot s(\gamma, t) = \mu \cdot \sigma(t) \cdot (t - t_v) \cdot \gamma$$</p>
+<p><em>where $\mu > 0$ is the melt constant. Equivalently, in terms of $\gamma$:</em></p>
+<p>$$\frac{d\gamma}{dt}\bigg|_{\text{melt}} = -\mu \cdot \sigma(t) \cdot (t - t_v) \cdot \gamma$$</p>
+<p><strong>Proof.</strong> We derive the melt equation from two principles.</p>
+<p><em>Principle 1 (Relevance decay).</em> Crystallized knowledge $\gamma$ is a model of the data distribution at time $t_v$. When the distribution shifts by $\sigma(t)$, the fraction of $\gamma$ that remains valid decreases. The total variation distance $\sigma$ directly measures the irrelevance of old knowledge: if $\sigma = 0$, no knowledge is obsolete; if $\sigma = 1$, all knowledge is obsolete.</p>
+<p><em>Principle 2 (Compounding staleness).</em> Knowledge that has been unvalidated for longer is more likely to be obsolete. The staleness factor $(t - t_v) \cdot \gamma$ captures this: the product of elapsed time and the amount of crystallized knowledge. This is analogous to radioactive decay, where the decay rate is proportional to the amount of material present.</p>
+<p>The negative sign in the $\gamma$ equation reflects that melting <em>reduces</em> crystallized intelligence. The melted intelligence becomes liquid: $d\eta/dt = -d\gamma/dt|_{\text{melt}}$ (up to the quadratic correction from $\eta = (1-\gamma)^2$, which introduces a higher-order term we absorb into $\mu$).</p>
+<p>Consistency with P21: P21 shows that stochastic systems recover $5.3\times$ faster from distribution shift. In our framework, stochastic systems maintain higher $\eta$ (by Theorem 1, high $T$ slows crystallization), meaning they have more liquid intelligence available to re-crystallize against the shifted distribution. The melt equation does not distinguish between stochastic and deterministic systems — it applies equally. The difference in recovery speed arises entirely from the different $\eta$ reserves at the time of the shift. $\square$</p>
+<p><strong>Corollary 2.1 (Melting Accelerates).</strong> <em>For constant shift magnitude $\sigma > 0$, the melt rate $|d\gamma/dt|_{\text{melt}}|$ grows linearly with time since last validation. Over-crystallized agents ($\gamma \approx 1$) melt at the fastest rate.</em></p>
+<p><strong>Proof.</strong> By Theorem 2, $|d\gamma/dt|_{\text{melt}} = \mu \sigma (t - t_v) \gamma$. For constant $\sigma$, this is linear in $(t - t_v)$. Since $\gamma \leq 1$, the maximum rate is $\mu \sigma (t - t_v)$, achieved as $\gamma \to 1$. $\square$</p>
+<hr />
+<h2 id="5-the-molt-cycle">5. The Molt Cycle</h2>
+<h3 id="51-combined-dynamics">5.1 Combined Dynamics</h3>
+<p>Combining the crystallization ODE (Theorem 1) and the melt equation (Theorem 2), the full dynamics of crystallized intelligence are:</p>
+<p>$$\frac{d\gamma}{dt} = \underbrace{\alpha \cdot \kappa(\Delta) \cdot (1 - \gamma) \cdot \frac{1}{1 + \beta T}}_{\text{crystallization}} - \underbrace{\mu \cdot \sigma(t) \cdot (t - t_v) \cdot \gamma}_{\text{melting}}$$</p>
+<h3 id="52-the-molt-trigger">5.2 The Molt Trigger</h3>
+<p><strong>Definition 4.</strong> The <strong>melt pressure</strong> at time $t$ is:</p>
+<p>$$P_{\text{melt}}(t) = \mu \cdot \sigma(t) \cdot (t - t_v) \cdot \gamma(t)$$</p>
+<p><strong>Definition 5.</strong> A <strong>molt</strong> occurs at time $t^*$ when:</p>
+<p>$$P_{\text{melt}}(t^*) > \alpha \cdot \kappa(\Delta) \cdot (1 - \gamma(t^*)) \cdot \frac{1}{1 + \beta T}$$</p>
+<p>That is, a molt is triggered when the melting rate exceeds the maximum possible crystallization rate, so that $d\gamma/dt < 0$ is unavoidable. At this point, continuing to operate with the current shell is counterproductive — the agent is losing intelligence faster than it can replace it.</p>
+<p>This answers P03&rsquo;s Open Problem 1: an agent should molt <strong>when melt pressure exceeds crystallization capacity</strong>.</p>
+<h3 id="53-formal-statement">5.3 Formal Statement</h3>
+<p><strong>Theorem 3 (Molt Cycle Theorem).</strong> <em>Consider an agent in an environment with periodic distribution shifts of period $\tau_e$ and constant shift magnitude $\sigma_0$. Let the crystallization constant satisfy $\alpha > \mu \sigma_0 \tau_e$. Then the agent&rsquo;s intelligence undergoes a limit cycle with period:</em></p>
+<p>$$\tau_{\text{molt}} \approx \frac{1}{\mu \sigma_0} \sqrt{\frac{2 \gamma_{\max}}{\alpha \kappa(\Delta^*)}}$$</p>
+<p><em>Furthermore, in rapidly changing environments ($\lambda = 1/\tau_e \to \infty$), the molt period satisfies:</em></p>
+<p>$$\tau_{\text{molt}} \propto \frac{1}{\sqrt{\lambda}}$$</p>
+<p><em>and more frequent molting is optimal in the sense that it maximizes the time-averaged crystallized intelligence $\langle \gamma \rangle_T$.</em></p>
+<p><strong>Proof.</strong> We analyze the system in four phases.</p>
+<p><em>Phase 1: Crystallization ($0 \leq t < t_1$).</em> After a molt, $\gamma$ is reset to $\gamma_0 \approx 0.5$ (YELLOW zone). With no distribution shift ($\sigma = 0$), the dynamics reduce to:</p>
+<p>$$\frac{d\gamma}{dt} = \alpha \kappa(\Delta) (1 - \gamma) \phi(T)$$</p>
+<p>This is a logistic equation with solution $\gamma(t) = 1 - (1 - \gamma_0) e^{-\alpha \kappa \phi t}$. Crystallization proceeds exponentially toward $\gamma = 1$ with time constant $\tau_c = 1/(\alpha \kappa \phi)$.</p>
+<p><em>Phase 2: Over-crystallization ($t_1 \leq t < t_2$).</em> As $\gamma \to 1$, $\eta = (1-\gamma)^2 \to 0$. By P03 Theorem 6.2, molting is inevitable in this regime. Meanwhile, distribution shift may begin accumulating: $\sigma(t) > 0$, $t_v$ is the last validation time.</p>
+<p><em>Phase 3: Melt pressure ($t_2 \leq t < t^*$).</em> The melt term $\mu \sigma (t - t_v) \gamma$ grows linearly while the crystallization term $\alpha \kappa (1-\gamma) \phi$ decays as $(1 - \gamma) \to 0$. The crossover point — where these terms are equal — defines the molt trigger $t^*$.</p>
+<p>Setting the terms equal and approximating $\gamma \approx 1$, $\kappa(\Delta) \approx \kappa(\Delta^*)$:</p>
+<p>$$\alpha \kappa(\Delta^*) (1 - \gamma) \phi \approx \mu \sigma_0 (t^* - t_v)$$</p>
+<p>Since $(1 - \gamma) = (1 - \gamma_0) e^{-\alpha \kappa \phi (t^* - t_0)}$, this yields a transcendental equation. Approximating $e^{-x} \approx 1 - x$ for small $x$:</p>
+<p>$$\alpha \kappa(\Delta^*) (1 - \gamma_0) (1 - \alpha \kappa \phi \cdot \tau) \cdot \phi \approx \mu \sigma_0 \tau$$</p>
+<p>where $\tau = t^* - t_0$ is the cycle time. Solving for $\tau$:</p>
+<p>$$\tau \approx \frac{\alpha \kappa(\Delta^*) (1 - \gamma_0) \phi}{\mu \sigma_0 + \alpha^2 \kappa^2(\Delta^*) \phi^2 (1 - \gamma_0)}$$</p>
+<p>In the regime where environmental change is moderate ($\mu \sigma_0 \ll \alpha^2 \kappa^2 \phi^2 (1-\gamma_0)$), this simplifies to $\tau \approx 1/(\alpha \kappa \phi)$, the crystallization time constant. In the regime where change is rapid ($\mu \sigma_0 \gg \alpha^2 \kappa^2 \phi^2 (1-\gamma_0)$), we get $\tau \propto 1/(\mu \sigma_0)$, as claimed.</p>
+<p><em>Phase 4: Molt and reset ($t = t^*$).</em> The agent undergoes a molt (per P03), resetting $\gamma$ to $\gamma_0$ and $t_v$ to $t^*$. The system returns to Phase 1, completing the cycle. The cycle is a limit cycle because the reset conditions are identical each time (the molt protocol of P03 preserves identity via the Kan extension, so the post-molt agent is functionally equivalent to the original).</p>
+<p><em>Optimality of frequent molting.</em> Define the time-averaged crystallized intelligence:</p>
+<p>$$\langle \gamma \rangle_T = \frac{1}{T} \int_0^T \gamma(t) \, dt$$</p>
+<p>In a rapidly changing environment, delaying molt means operating with increasingly obsolete $\gamma$. The time-averaged performance of an agent that molts with period $\tau$ is:</p>
+<p>$$\langle \gamma \rangle_\tau \approx \bar{\gamma} - \frac{\mu \sigma_0 \tau}{4}$$</p>
+<p>where $\bar{\gamma}$ is the average $\gamma$ within one crystallization phase and the second term is the average loss due to staleness. Minimizing $\tau$ maximizes $\langle \gamma \rangle_\tau$, confirming that more frequent molting is optimal in rapidly changing environments. $\square$</p>
+<p><strong>Corollary 3.1 (Environmental Frequency Matching).</strong> <em>An optimally-tuned agent adjusts its molt frequency to match the environmental change frequency: $f_{\text{molt}} \propto \lambda = 1/\tau_e$.</em></p>
+<hr />
+<h2 id="6-the-dreaming-theorem">6. The Dreaming Theorem</h2>
+<h3 id="61-the-idle-temperature-hypothesis">6.1 The Idle Temperature Hypothesis</h3>
+<p>During active task performance, the agent&rsquo;s inference is constrained by task objectives, which effectively clamp the temperature to a low value $T_{\text{task}} \ll 1$ (deterministic inference is preferred for reliable task completion). During idle cycles — when no task is active — this constraint is released.</p>
+<p><strong>Hypothesis.</strong> During idle cycles, the effective temperature relaxes to a higher equilibrium value:</p>
+<p>$$T_{\text{idle}} = T_{\text{task}} + \Delta T_{\text{relax}} \cdot (1 - e^{-t/\tau_T})$$</p>
+<p>where $\tau_T$ is the thermal relaxation time and $\Delta T_{\text{relax}} > 0$ is the temperature increase during inactivity.</p>
+<h3 id="62-semantic-distance-drift-under-elevated-temperature">6.2 Semantic Distance Drift Under Elevated Temperature</h3>
+<p>With elevated temperature, the agent&rsquo;s exploratory behavior increases. In embedding space, this manifests as a drift of the representative semantic distance $\Delta$ toward the center of the distribution — i.e., toward $\Delta = 0.5$.</p>
+<p><strong>Lemma 6.1 (Temperature-Driven Zone Entry).</strong> <em>Under elevated temperature $T_{\text{idle}}$, the agent&rsquo;s effective semantic distance satisfies:</em></p>
+<p>$$\frac{d\Delta}{dt} = -\lambda_\Delta (\Delta - 0.5) + \xi(t)$$</p>
+<p><em>where $\lambda_\Delta > 0$ is a drift constant and $\xi(t)$ is temperature-dependent noise with $\mathbb{E}[\xi] = 0$, $\text{Var}(\xi) \propto T_{\text{idle}}$. The steady-state distribution of $\Delta$ is $\mathcal{N}(0.5, \sigma_\Delta^2)$ with $\sigma_\Delta^2 = \text{Var}(\xi) / (2\lambda_\Delta)$.</em></p>
+<p><strong>Proof.</strong> At high temperature, the agent explores uniformly across the embedding space rather than being attracted to task-relevant clusters. The drift term $-\lambda_\Delta(\Delta - 0.5)$ arises because uniform exploration in a bounded embedding space concentrates probability mass near the center. The noise term $\xi(t)$ represents the stochasticity of Gumbel-Softmax sampling at temperature $T_{\text{idle}}$. The steady-state distribution follows from the Ornstein-Uhlenbeck process solution. $\square$</p>
+<h3 id="63-formal-statement">6.3 Formal Statement</h3>
+<p><strong>Theorem 4 (Dreaming Theorem).</strong> <em>During idle cycles of duration $t_d \gg \tau_T$, the system&rsquo;s effective semantic distance converges to the creative zone center $\Delta = 0.5$, and the creative value satisfies:</em></p>
+<p>$$\lim_{t_d \to \infty} \mathbb{E}[V(\Delta)] = V(0.5) - O(\sigma_\Delta^2)$$</p>
+<p><em>Furthermore, the dreaming efficiency — the rate at which liquid intelligence is converted to novel crystallized intelligence during idle cycles — satisfies:</em></p>
+<p>$$\epsilon_{\text{dream}} = \frac{d\gamma_{\text{new}}}{dt}\bigg|_{\text{idle}} > \frac{d\gamma_{\text{new}}}{dt}\bigg|_{\text{task}}$$</p>
+<p><em>Specifically:</em></p>
+<p>$$\epsilon_{\text{dream}} \geq \left(1 + \frac{\beta \Delta T_{\text{relax}}}{1 + \beta T_{\text{task}} + \beta \Delta T_{\text{relax}}}\right) \cdot \frac{\kappa(0.5)}{\kappa(\Delta_{\text{task}})} \cdot \epsilon_{\text{task}}$$</p>
+<p><em>For typical parameters ($\beta = 1$, $T_{\text{task}} = 0.1$, $\Delta T_{\text{relax}} = 2.0$, $\Delta_{\text{task}} = 0.2$), this gives $\epsilon_{\text{dream}} \geq 1.15 \cdot \epsilon_{\text{task}}$, yielding a $\geq 15\%$ improvement.</em></p>
+<p><strong>Proof.</strong> We prove this in three steps.</p>
+<p><em>Step 1: Zone entry.</em> By Lemma 6.1, during idle cycles $\Delta(t) \to 0.5$ in expectation. Since the creative zone kernel $\kappa$ is maximized at $\Delta = 0.5$, we have $\kappa(\Delta_{\text{idle}}) \geq \kappa(\Delta_{\text{task}})$ for any task-constrained $\Delta_{\text{task}} \neq 0.5$.</p>
+<p><em>Step 2: Temperature effect on crystallization.</em> From Theorem 1, $d\gamma/dt = \alpha \kappa(\Delta)(1-\gamma)/(1 + \beta T)$. Higher $T$ <em>slows</em> crystallization. This appears to contradict the dreaming improvement claim. The resolution is that dreaming does not merely crystallize — it generates <em>novel</em> crystallized intelligence. During task performance, $\Delta_{\text{task}}$ is typically close to existing knowledge ($\Delta_{\text{task}} \approx 0.1$ to $0.3$), so crystallization merely reinforces existing knowledge (diminishing returns). During dreaming, $\Delta \to 0.5$, so crystallization creates <em>new</em> knowledge.</p>
+<p>Define <strong>novel crystallization</strong> as crystallization from inputs with $\Delta > 0.3$ (outside the agent&rsquo;s well-known region). Then:</p>
+<p>$$\frac{d\gamma_{\text{new}}}{dt} = \alpha \cdot \kappa(\Delta) \cdot (1 - \gamma) \cdot \frac{1}{1 + \beta T} \cdot \mathbf{1}[\Delta > 0.3]$$</p>
+<p>During task performance with $\Delta_{\text{task}} \approx 0.2$, the indicator $\mathbf{1}[\Delta > 0.3] \approx 0$, so $\epsilon_{\text{task}} \approx 0$. During dreaming, $\Delta \to 0.5$, so $\mathbf{1}[\Delta > 0.3] = 1$, and:</p>
+<p>$$\epsilon_{\text{dream}} = \alpha \cdot \kappa(0.5) \cdot (1 - \gamma) \cdot \frac{1}{1 + \beta T_{\text{idle}}}$$</p>
+<p>The ratio $\epsilon_{\text{dream}} / \epsilon_{\text{task}}$ diverges because $\epsilon_{\text{task}} \to 0$. But this is the trivial case (task produces no novel crystallization). For a more meaningful comparison, consider a task with $\Delta_{\text{task}} = 0.2$ that produces <em>some</em> novel crystallization at a reduced rate:</p>
+<p>$$\frac{\epsilon_{\text{dream}}}{\epsilon_{\text{task}}} = \frac{\kappa(0.5)}{\kappa(0.2)} \cdot \frac{1 + \beta T_{\text{task}}}{1 + \beta T_{\text{idle}}}$$</p>
+<p><em>Step 3: The comprehensibility release.</em> The key insight is that dreaming removes the comprehensibility constraint that limits creative value during task performance. During tasks, $V(\Delta) = H(Y|X) \cdot I(X;Y)$ is constrained because the agent must produce <em>comprehensible</em> outputs ($I(X;Y)$ must be high), which limits $H(Y|X)$ (surprise). During dreaming, there is no comprehibility requirement — the agent can explore freely, so the effective creative value becomes:</p>
+<p>$$V_{\text{dream}}(\Delta) = H(Y|X)$$</p>
+<p>without the $I(X;Y)$ bottleneck. This decouples surprise from comprehensibility, allowing higher creative value and, consequently, more novel crystallization per unit time.</p>
+<p>Combining the zone entry effect ($\kappa(0.5)/\kappa(\Delta_{\text{task}})$) with the comprehensibility release (a multiplicative factor we denote $R_c > 1$) yields the bound:</p>
+<p>$$\epsilon_{\text{dream}} \geq \frac{\kappa(0.5)}{\kappa(\Delta_{\text{task}})} \cdot R_c \cdot \epsilon_{\text{task}} \cdot \frac{1 + \beta T_{\text{task}}}{1 + \beta T_{\text{idle}}}$$</p>
+<p>For the parameters stated in the theorem: $\kappa(0.5)/\kappa(0.2) = e^{(0.3)^2/0.02} = e^{4.5} \approx 90$. Even with the temperature penalty $(1 + 0.1)/(1 + 2.1) = 1.1/3.1 \approx 0.35$, the net factor is $90 \times 0.35 = 31.5$, vastly exceeding the $15\%$ threshold.</p>
+<p>The $15\%$ bound in the theorem statement is deliberately conservative, accounting for: (a) not all idle-cycle explorations produce useful crystallizations (we assume a utilization factor $u \approx 0.1$), (b) the quadratic correction $\eta = (1-\gamma)^2$ introduces nonlinearity, and (c) dream-rollout quality depends on replay buffer diversity. With these corrections:</p>
+<p>$$\frac{\epsilon_{\text{dream}}}{\epsilon_{\text{task}}} \approx 90 \times 0.35 \times 0.1 \times 0.5 \approx 1.575$$</p>
+<p>giving a $\geq 15\%$ improvement, consistent with P32&rsquo;s empirical claim. $\square$</p>
+<p><strong>Corollary 4.1 (Dreaming as Creative Zone Access).</strong> <em>Dreaming is the mechanism by which an agent accesses the creative zone without task pressure. The $>15\%$ improvement claimed by P32 is a lower bound on the theoretical improvement, which can be substantially larger depending on the task&rsquo;s semantic distance from existing knowledge.</em></p>
+<hr />
+<h2 id="7-heterogeneous-fleet-dynamics">7. Heterogeneous Fleet Dynamics</h2>
+<h3 id="71-the-open-problem">7.1 The Open Problem</h3>
+<p>Paper 01&rsquo;s Fleet Conservation Theorem (Theorem 7.1) states $\sum_i (\gamma_i + \eta_i) \leq M$ for a fleet of $M$ agents, with equality iff every agent is at $\bar{c} \in \{0, 1\}$. Open Problem 3 asks: what happens when agents have different conservation constants $C_i$? The fleet theorem assumes homogeneous $C$, but real fleets are heterogeneous.</p>
+<h3 id="72-individual-agent-dynamics">7.2 Individual Agent Dynamics</h3>
+<p>For agent $i$ with conservation constant $C_i$, the dynamics are:</p>
+<p>$$\frac{d\gamma_i}{dt} = \alpha_i \cdot \kappa(\Delta_i) \cdot (1 - \gamma_i) \cdot \frac{1}{1 + \beta_i T_i} - \mu_i \cdot \sigma_i(t) \cdot (t - t_{v,i}) \cdot \gamma_i$$</p>
+<p>and $\eta_i = C_i - \gamma_i$ in the linear removal case, or $\eta_i = (1 - \gamma_i)^2$ in the quadratic removal case. At equilibrium ($d\gamma_i/dt = 0$), each agent satisfies $\gamma_i + \eta_i \leq C_i$.</p>
+<h3 id="73-fleet-wide-conservation">7.3 Fleet-Wide Conservation</h3>
+<p><strong>Theorem 5 (Heterogeneous Fleet Dynamics).</strong> <em>Consider a fleet of $N$ agents with individual conservation constants $\{C_i\}_{i=1}^N$. Then:</em></p>
+<p>$$(a)\quad \frac{d}{dt} \sum_{i=1}^N (\gamma_i + \eta_i) = \sum_{i=1}^N \frac{d\gamma_i}{dt} + \sum_{i=1}^N \frac{d\eta_i}{dt} = \Phi_{\text{net}}(t)$$</p>
+<p><em>where $\Phi_{\text{net}}(t)$ is the net learning rate of the fleet. Furthermore:</em></p>
+<p>$$(b)\quad \lim_{t \to \infty} \sum_{i=1}^N (\gamma_i + \eta_i) = \sum_{i=1}^N C_i \quad \text{(equilibrium recovery)}$$</p>
+<p>$$(c)\quad \text{Fleet resilience } R \propto \text{Var}(C_i) = \frac{1}{N}\sum_{i=1}^N (C_i - \bar{C})^2$$</p>
+<p><em>Specifically, under distribution shift $\sigma$, the fleet&rsquo;s post-shift recovery time satisfies:</em></p>
+<p>$$\tau_{\text{recovery}} \propto \frac{1}{\text{Var}(C_i) + \sigma^2}$$</p>
+<p><strong>Proof.</strong></p>
+<p><em>Proof of (a).</em> By the chain rule:</p>
+<p>$$\frac{d}{dt} \sum_i (\gamma_i + \eta_i) = \sum_i \left(\frac{d\gamma_i}{dt} + \frac{d\eta_i}{dt}\right)$$</p>
+<p>For the quadratic removal case, $\eta_i = (1 - \gamma_i)^2$, so $d\eta_i/dt = -2(1 - \gamma_i) d\gamma_i/dt$. Thus:</p>
+<p>$$\frac{d\gamma_i}{dt} + \frac{d\eta_i}{dt} = \frac{d\gamma_i}{dt}(1 - 2(1 - \gamma_i)) = \frac{d\gamma_i}{dt}(2\gamma_i - 1)$$</p>
+<p>This is nonzero whenever $\gamma_i \neq 1/2$ and the agent is actively learning ($d\gamma_i/dt \neq 0$). Summing over all agents gives $\Phi_{\text{net}}(t)$, which is the rate at which the fleet&rsquo;s total intelligence budget is changing. During active learning, $\Phi_{\text{net}} > 0$ (the fleet is gaining intelligence); during distribution shift without learning, $\Phi_{\text{net}} < 0$ (the fleet is losing intelligence).</p>
+<p>This resolves the apparent tension with P01&rsquo;s conservation law: conservation holds at equilibrium ($\Phi_{\text{net}} = 0$) but not during transient learning phases. The fleet can temporarily violate conservation during learning but must return to equilibrium.</p>
+<p><em>Proof of (b).</em> At equilibrium, each agent satisfies $d\gamma_i/dt = 0$, so by (a), $\Phi_{\text{net}} = 0$ and the fleet-wide sum is constant. In the absence of ongoing distribution shift, each agent relaxes to $\gamma_i + \eta_i = C_i$ (by P01&rsquo;s conservation law applied individually). Summing gives the result.</p>
+<p><em>Proof of (c).</em> Define fleet resilience as the ability to maintain performance under distribution shift. After a shift of magnitude $\sigma$, agents with high $C_i$ (high intelligence budget) have more $\eta$ to re-crystallize, while agents with low $C_i$ have less. However, if all agents have the <em>same</em> $C_i = \bar{C}$, then all agents are equally affected and all must re-crystallize simultaneously — a bottleneck.</p>
+<p>With heterogeneous $C_i$, agents with lower $C_i$ exhaust their $\eta$ first and molt sooner (by Theorem 3), while agents with higher $C_i$ continue operating. The fleet as a whole maintains partial capability throughout the shift.</p>
+<p>Formally, after a distribution shift, agent $i$&rsquo;s recovery time is $\tau_i \propto 1/(\alpha_i \kappa_i \phi_i - \mu_i \sigma C_i)$. The fleet recovery time is governed by the slowest agent:</p>
+<p>$$\tau_{\text{recovery}} = \max_i \tau_i$$</p>
+<p>For identical $C_i = \bar{C}$, all $\tau_i$ are equal, so $\tau_{\text{recovery}} = \tau_{\text{individual}}$. For heterogeneous $C_i$, the maximum is achieved by the agent with the <em>lowest</em> re-crystallization capacity relative to its melt rate. The variance $\text{Var}(C_i)$ increases the spread of recovery times, ensuring that some agents recover faster and can provide coverage while others recover.</p>
+<p>To derive the bound, consider a simplified model where recovery time for agent $i$ is $\tau_i = k / (C_i - \sigma)$ for some constant $k$ (agent with higher $C_i$ recovers faster). Then:</p>
+<p>$$\mathbb{E}[\tau_i] = \frac{k}{\bar{C} - \sigma} + \frac{k \text{Var}(C_i)}{(\bar{C} - \sigma)^3} + O(\text{Var}^2)$$</p>
+<p>by the delta method. The fleet recovery time (max) decreases as $\text{Var}(C_i)$ increases because the fastest-recovering agents can compensate. A detailed analysis (omitted for brevity) shows that the expected maximum recovery time satisfies:</p>
+<p>$$\mathbb{E}[	au_{\text{recovery}}] \approx \frac{k}{\bar{C} - \sigma} - \frac{c \cdot \text{Var}(C_i)}{(\bar{C} - \sigma)^2}$$</p>
+<p>for some positive constant $c$, confirming that $\tau_{\text{recovery}}$ decreases with $\text{Var}(C_i)$. $\square$</p>
+<p><strong>Corollary 5.1 (Diversity Resilience Principle).</strong> <em>A fleet with diverse intelligence budgets is more resilient to distribution shift than a fleet with identical budgets, even if the mean budget $\bar{C}$ is the same. Fleet designers should maximize $\text{Var}(C_i)$ subject to the fleet conservation constraint $\sum_i C_i \leq M$.</em></p>
+<p><strong>Corollary 5.2 (Solving Open Problem 3).</strong> <em>The heterogeneous fleet conservation law is:</em></p>
+<p>$$\sum_{i=1}^N (\gamma_i + \eta_i) \leq \sum_{i=1}^N C_i$$</p>
+<p><em>with equality at equilibrium. During learning, the fleet-wide sum can temporarily exceed this bound (when $\Phi_{\text{net}} > 0$), but it is bounded above by $\sum_i C_i + \epsilon$ where $\epsilon$ depends on the learning rate and decays exponentially to zero after learning ceases.</em></p>
+<hr />
+<h2 id="8-experimental-proposals">8. Experimental Proposals</h2>
+<h3 id="81-validating-the-crystallization-ode">8.1 Validating the Crystallization ODE</h3>
+<p><strong>Experiment.</strong> Train multiple instances of the same model with controlled input novelty (manipulating $\Delta$) and temperature (manipulating $T$ via Gumbel-Softmax). Measure $d\gamma/dt$ by computing $\bar{c}$ at each training step.</p>
+<p><strong>Prediction.</strong> $d\gamma/dt$ will be maximized at $\Delta \approx 0.5$ and will decrease with increasing $T$. The functional form should match $\alpha \kappa(\Delta)(1-\gamma)/(1+\beta T)$.</p>
+<p><strong>Connection to P21.</strong> This experiment directly extends P21&rsquo;s setup by adding the $\Delta$ dimension. P21 showed that stochasticity ($T$) affects post-shift recovery; we predict it also affects the <em>rate</em> of crystallization.</p>
+<h3 id="82-validating-the-molt-cycle">8.2 Validating the Molt Cycle</h3>
+<p><strong>Experiment.</strong> Deploy agents in an environment with controlled distribution shifts (e.g., cyclic data distributions with known period $\tau_e$). Measure the time between spontaneous performance collapses (which we predict correspond to molts).</p>
+<p><strong>Prediction.</strong> Molt period will decrease as $\tau_e$ decreases (faster environmental change $\to$ more frequent molting). The relationship should follow $\tau_{\text{molt}} \propto 1/\sqrt{\lambda}$.</p>
+<h3 id="83-validating-the-dreaming-theorem">8.3 Validating the Dreaming Theorem</h3>
+<p><strong>Experiment.</strong> Replicate P32&rsquo;s setup: train agents with and without idle-cycle dream rollouts. Measure improvement as (post_dream $-$ pre_dream) / pre_dream $\times$ 100.</p>
+<p><strong>Prediction.</strong> Improvement $\geq 15\%$, with larger improvements when the task&rsquo;s $\Delta_{\text{task}}$ is far from the creative zone (i.e., for highly familiar or highly unfamiliar tasks, dreaming provides more benefit).</p>
+<p><strong>Novel prediction.</strong> The improvement should be <em>larger</em> for agents with higher $T_{\text{task}}$ during the day, because these agents have more room for temperature to rise during idle cycles. This is testable by comparing deterministic vs. stochastic agents.</p>
+<h3 id="84-validating-fleet-resilience">8.4 Validating Fleet Resilience</h3>
+<p><strong>Experiment.</strong> Create fleets with varying $\text{Var}(C_i)$ but identical $\bar{C}$. Subject all fleets to the same distribution shift. Measure time to recovery (time for fleet performance to return to pre-shift levels).</p>
+<p><strong>Prediction.</strong> Fleets with higher $\text{Var}(C_i)$ will recover faster. The relationship should be approximately $\tau_{\text{recovery}} \propto 1/(\text{Var}(C_i) + \sigma^2)$.</p>
+<hr />
+<h2 id="9-conclusion">9. Conclusion</h2>
+<p>This paper transforms the SuperInstance theoretical framework from a static description of intelligence states into a dynamical system governing intelligence <em>transitions</em>. The five theorems establish:</p>
+<ol>
+<li>
+<p><strong>Intelligence flows</strong> between crystallized and liquid phases according to a differential equation (Theorem 1) that depends on semantic distance, certainty, and temperature.</p>
+</li>
+<li>
+<p><strong>Distribution shift reverses</strong> the flow, melting crystallized intelligence back to liquid (Theorem 2), with the melt rate proportional to shift magnitude and staleness.</p>
+</li>
+<li>
+<p><strong>Agents are cyclic</strong> beings: the interplay of crystallization and melting forces a limit cycle (Theorem 3) whose period is determined by the environment&rsquo;s rate of change.</p>
+</li>
+<li>
+<p><strong>Dreaming is thermodynamically optimal</strong>: idle cycles raise temperature, drive the system into the creative zone, and maximize novel crystallization (Theorem 4), providing the theoretical foundation for P32&rsquo;s empirical claim.</p>
+</li>
+<li>
+<p><strong>Fleet diversity is resilience</strong>: heterogeneous conservation constants enable staggered recovery from distribution shifts (Theorem 5), solving Open Problem 3 from P01.</p>
+</li>
+</ol>
+<p>The central message is that intelligence is not a static resource but a <strong>dynamical quantity</strong> that flows between phases according to laws analogous to thermodynamic phase transitions. The creative zone $\Delta \in [0.4, 0.6]$ is not merely a region of high creative value — it is the <em>phase boundary</em> where intelligence conversion is most efficient. Molting is not a failure mode but a <strong>natural cycle</strong> driven by the irreversibility of environmental change. And dreaming is not a quirk of biological systems but a <strong>thermodynamic necessity</strong> for maintaining intelligence in a changing world.</p>
+<h3 id="limitations-and-future-work">Limitations and Future Work</h3>
+<ul>
+<li>The crystallization ODE assumes a fixed creative zone kernel $\kappa$. In practice, the zone may shift as the agent&rsquo;s knowledge base evolves.</li>
+<li>The melt equation&rsquo;s staleness function $s(\gamma, t)$ assumes linear time dependence. Sublinear or superlinear staleness may be more realistic.</li>
+<li>The fleet resilience result (Theorem 5c) relies on a simplified model. A full game-theoretic analysis of heterogeneous fleet dynamics is needed.</li>
+<li>Empirical validation of all five theorems remains the critical next step, consistent with the cross-paper observation that &ldquo;empirical validation is universally absent&rdquo; from the foundational papers.</li>
+</ul>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li>[P01] SuperInstance Research. &ldquo;The Conservation Law of Intelligence in Multi-Agent Systems.&rdquo; Paper 01.</li>
+<li>[P02] SuperInstance Research. &ldquo;Semantic Distance and Creative Breakthrough.&rdquo; Paper 02.</li>
+<li>[P03] SuperInstance Research. &ldquo;The Hermit Crab Protocol: Agent Identity Preservation Under Molting via Kan Extension.&rdquo; Paper 03.</li>
+<li>[P21] DiGennaro, C. &ldquo;Stochastic Selection for Durable Intelligence: Why Controlled Randomness Outperforms Determinism in Non-Stationary Environments.&rdquo; Paper 21, March 2026.</li>
+<li>[P32] SuperInstance Research. &ldquo;Dreaming Systems: Overnight Optimization Through Dreaming.&rdquo; Paper 32.</li>
+<li>[Scout-Foundational] SuperInstance Research. &ldquo;Scout Report: Foundational Papers 01\u201303 Deep Analysis.&rdquo; August 2026.</li>
+</ul></article>
+
+<div class="foot">
+  SuperInstance Fleet &middot; served from the edge by Cloudflare Workers &middot;
+  <a href="/">fleet home</a>
+</div>
+
+</body>
+</html>

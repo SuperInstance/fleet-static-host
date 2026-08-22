@@ -1,0 +1,64 @@
+{
+  "process": "generic_180nm",
+  "description": "Generic 180nm bulk CMOS (educational/legacy)",
+  "category": "legacy",
+  "voltage": 5.0,
+  "num_cells": 5,
+  "cells": {
+    "ROM_PLUS_X1": {
+      "type": "plus",
+      "width_um": 2.0,
+      "height_um": 2.0,
+      "area_um2": 4.0,
+      "transistors": 2,
+      "leakage_pa": 1600.0,
+      "delay_ns": 8.0,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_MINUS_X1": {
+      "type": "minus",
+      "width_um": 2.0,
+      "height_um": 2.0,
+      "area_um2": 4.0,
+      "transistors": 2,
+      "leakage_pa": 1600.0,
+      "delay_ns": 8.0,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_ZERO_X1": {
+      "type": "zero",
+      "width_um": 2.0,
+      "height_um": 2.0,
+      "area_um2": 4.0,
+      "transistors": 0,
+      "leakage_pa": 0.0,
+      "delay_ns": 0.0,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_REF_HI": {
+      "type": "ref_hi",
+      "width_um": 2.0,
+      "height_um": 2.0,
+      "area_um2": 4.0,
+      "transistors": 2,
+      "leakage_pa": 1600.0,
+      "delay_ns": 8.0,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_REF_LO": {
+      "type": "ref_lo",
+      "width_um": 2.0,
+      "height_um": 2.0,
+      "area_um2": 4.0,
+      "transistors": 2,
+      "leakage_pa": 1600.0,
+      "delay_ns": 8.0,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    }
+  }
+}

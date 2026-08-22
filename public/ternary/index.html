@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ternary ROM – Interactive Explainer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- HEADER -->
+    <header class="header">
+      <h1>Ternary ROM</h1>
+      <p class="subtitle">Interactive model-to-GDS flow for mask-locked ternary inference chips</p>
+    </header>
+
+    <!-- FETCH ERROR BANNER -->
+    <div id="fetchErrorBanner" class="error-banner" style="display:none;">
+      <strong>⚠️ Fetch Error:</strong> This page requires serving over HTTP. Try: <code>cd web && python3 -m http.server 8902</code>
+    </div>
+
+    <!-- SECTION 1: HERO / WHAT IS TERNARY ROM -->
+    <section id="heroSection" class="section">
+      <h2>What is a Ternary ROM?</h2>
+      <div class="hero-content">
+        <div class="hero-text">
+          <p>
+            Ternary ROM encodes neural network weights into <strong>mask-programmed silicon</strong>.
+            Instead of fetching weights from SRAM, weights are burned permanently into ROM cells—one cell per weight.
+          </p>
+          <p>
+            Each weight is quantized to <strong>ternary: {−1, 0, +1}</strong> (2 bits per weight = 8× memory reduction).
+            Three cell types handle all weights:
+          </p>
+          <ul>
+            <li><strong>ROM_PLUS</strong>: Drives bitline to VDD when selected (weight = +1)</li>
+            <li><strong>ROM_MINUS</strong>: Drives bitline to GND when selected (weight = −1)</li>
+            <li><strong>ROM_ZERO</strong>: Empty space—no transistors, zero leakage (weight = 0)</li>
+          </ul>
+          <p>
+            <strong>Why ternary ROM?</strong> No multipliers needed (just add/subtract/skip). No weight fetches from SRAM.
+            ~60% of weights are zero → zero static power for those cells.
+          </p>
+        </div>
+
+        <div class="hero-diagram">
+          <svg viewBox="0 0 300 200" class="diagram">
+            <!-- Title -->
+            <text x="150" y="20" text-anchor="middle" class="diagram-title">Ternary Weight → Cell Row</text>
+
+            <!-- Weight column -->
+            <text x="30" y="45" font-size="12" fill="#999">Weight</text>
+            <rect x="10" y="55" width="40" height="25" fill="none" stroke="#666" stroke-width="1.5"/>
+            <text x="30" y="75" text-anchor="middle" font-weight="bold">+1</text>
+
+            <rect x="10" y="85" width="40" height="25" fill="none" stroke="#666" stroke-width="1.5"/>
+            <text x="30" y="105" text-anchor="middle" font-weight="bold">−1</text>
+
+            <rect x="10" y="115" width="40" height="25" fill="none" stroke="#666" stroke-width="1.5"/>
+            <text x="30" y="135" text-anchor="middle" font-weight="bold">0</text>
+
+            <!-- Arrow -->
+            <path d="M 55 68 L 75 68" stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <path d="M 55 98 L 75 98" stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <path d="M 55 128 L 75 128" stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+            <!-- Cell column -->
+            <text x="100" y="45" font-size="12" fill="#999">ROM Cell</text>
+            <!-- PLUS cell -->
+            <rect x="82" y="55" width="35" height="25" fill="#1f4788" stroke="#4a9eff" stroke-width="1.5" rx="2"/>
+            <text x="99" y="72" text-anchor="middle" font-size="11" fill="#4a9eff">PLUS</text>
+
+            <!-- MINUS cell -->
+            <rect x="82" y="85" width="35" height="25" fill="#4a1f17" stroke="#ff6b4a" stroke-width="1.5" rx="2"/>
+            <text x="99" y="102" text-anchor="middle" font-size="11" fill="#ff6b4a">MINUS</text>
+
+            <!-- ZERO cell -->
+            <rect x="82" y="115" width="35" height="25" fill="#2a2a2a" stroke="#666" stroke-width="1.5" rx="2"/>
+            <text x="99" y="132" text-anchor="middle" font-size="11" fill="#999">ZERO</text>
+
+            <!-- Arrow to bitline -->
+            <path d="M 122 68 L 140 68" stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <path d="M 122 98 L 140 98" stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>
+            <path d="M 122 128 L 140 128" stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+            <!-- Bitline accumulation -->
+            <text x="160" y="45" font-size="12" fill="#999">Bitline</text>
+            <line x1="160" y1="55" x2="160" y2="145" stroke="#ffc107" stroke-width="3"/>
+            <circle cx="160" cy="68" r="4" fill="#ffc107"/>
+            <circle cx="160" cy="98" r="4" fill="#ffc107"/>
+            <circle cx="160" cy="128" r="4" fill="#ffc107"/>
+            <text x="175" y="72" font-size="10" fill="#ffc107">→ VDD</text>
+            <text x="175" y="102" font-size="10" fill="#ffc107">→ GND</text>
+            <text x="175" y="132" font-size="10" fill="#ffc107">→ Z</text>
+
+            <!-- Arrow marker definition -->
+            <defs>
+              <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <polygon points="0 0, 10 3, 0 6" fill="#999"/>
+              </marker>
+            </defs>
+
+            <!-- Legend at bottom -->
+            <text x="30" y="165" font-size="10" fill="#999">Each weight → one cell instance</text>
+            <text x="30" y="180" font-size="10" fill="#999">Multiple cells per bitline accumulate (OR tree)</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- COMPARISON TABLE -->
+      <div class="comparison-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Property</th>
+              <th>Ternary ROM</th>
+              <th>Conventional (SRAM + FP16)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Weight storage</td>
+              <td>Mask-programmed ROM</td>
+              <td>SRAM</td>
+            </tr>
+            <tr>
+              <td>Bits per weight</td>
+              <td><strong>2</strong></td>
+              <td>16</td>
+            </tr>
+            <tr>
+              <td>Memory reduction</td>
+              <td><strong>8×</strong></td>
+              <td>1× (baseline)</td>
+            </tr>
+            <tr>
+              <td>Multiply operation</td>
+              <td><strong>Eliminated</strong> (add/sub/skip)</td>
+              <td>Required</td>
+            </tr>
+            <tr>
+              <td>Gate count (MAC)</td>
+              <td><strong>103</strong></td>
+              <td>360</td>
+            </tr>
+            <tr>
+              <td>Energy per op</td>
+              <td><strong>22 pJ</strong></td>
+              <td>194 pJ</td>
+            </tr>
+            <tr>
+              <td>Weight update</td>
+              <td>New mask ($200K)</td>
+              <td>Rewrite SRAM (free)</td>
+            </tr>
+            <tr>
+              <td>Idle leakage</td>
+              <td><strong>Zero for ~60%</strong> of cells (weight=0)</td>
+              <td>Full SRAM leakage</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECTION 2: THE THREE CELLS -->
+    <section id="cellsSection" class="section">
+      <h2>The Three Cells: Truth Table & Symbols</h2>
+      <div class="cells-grid">
+        <!-- ROM_PLUS -->
+        <div class="cell-widget">
+          <h3>ROM_PLUS</h3>
+          <div class="cell-info">
+            <p><strong>Function:</strong> Drives BL to VDD (weight = +1)</p>
+            <p><strong>Transistors:</strong> 2 (PMOS pull-up)</p>
+            <p><strong>Leakage:</strong> ~2.37 pA (28nm)</p>
+          </div>
+
+          <div class="truth-table">
+            <h4>Truth Table</h4>
+            <table>
+              <tr>
+                <th>WL</th>
+                <th>BL</th>
+              </tr>
+              <tr>
+                <td>0</td>
+                <td>Z (undriven)</td>
+              </tr>
+              <tr class="highlight">
+                <td>1</td>
+                <td>VDD ✓</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="symbol-and-code">
+            <svg viewBox="0 0 150 120" class="cell-symbol">
+              <text x="75" y="20" text-anchor="middle" font-size="12" fill="#999">ROM_PLUS Symbol</text>
+              <!-- VDD rail -->
+              <line x1="30" y1="35" x2="120" y2="35" stroke="#ffc107" stroke-width="3"/>
+              <text x="125" y="38" font-size="11" fill="#ffc107">VDD</text>
+              <!-- PMOS device -->
+              <rect x="50" y="45" width="40" height="30" fill="none" stroke="#4a9eff" stroke-width="2"/>
+              <line x1="70" y1="62" x2="90" y2="62" stroke="#4a9eff" stroke-width="2"/>
+              <text x="75" y="78" text-anchor="middle" font-size="10" fill="#4a9eff">PMOS</text>
+              <!-- WL input -->
+              <line x1="10" y1="62" x2="50" y2="62" stroke="#9370db" stroke-width="2"/>
+              <text x="35" y="55" text-anchor="middle" font-size="10" fill="#9370db">WL</text>
+              <!-- BL output -->
+              <line x1="90" y1="75" x2="90" y2="105" stroke="#ffc107" stroke-width="2"/>
+              <text x="75" y="115" text-anchor="middle" font-size="10" fill="#ffc107">BL</text>
+              <!-- Current indicator (active) -->
+              <text id="plus-indicator" x="75" y="100" text-anchor="middle" font-size="14" fill="#999">→</text>
+            </svg>
+
+            <div class="verilog-snippet">
+              <h4>Verilog</h4>
+              <pre><code>module ROM_PLUS_X1 (WL, BL);
+  input WL;
+  output BL;
+
+  assign BL = WL ? 1'b1 : 1'bz;
+endmodule</code></pre>
+            </div>
+          </div>
+
+          <div class="cell-control">
+            <label>
+              <input type="checkbox" id="plus-wl" class="wl-toggle">
+              WL = <span id="plus-wl-val">0</span>
+            </label>
+            <p class="bl-output">BL = <span id="plus-bl-val">Z</span></p>
+          </div>
+        </div>
+
+        <!-- ROM_MINUS -->
+        <div class="cell-widget">
+          <h3>ROM_MINUS</h3>
+          <div class="cell-info">
+            <p><strong>Function:</strong> Drives BL to GND (weight = −1)</p>
+            <p><strong>Transistors:</strong> 2 (NMOS pull-down)</p>
+            <p><strong>Leakage:</strong> ~2.37 pA (28nm)</p>
+          </div>
+
+          <div class="truth-table">
+            <h4>Truth Table</h4>
+            <table>
+              <tr>
+                <th>WL</th>
+                <th>BL</th>
+              </tr>
+              <tr>
+                <td>0</td>
+                <td>Z (undriven)</td>
+              </tr>
+              <tr class="highlight">
+                <td>1</td>
+                <td>GND ✓</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="symbol-and-code">
+            <svg viewBox="0 0 150 120" class="cell-symbol">
+              <text x="75" y="20" text-anchor="middle" font-size="12" fill="#999">ROM_MINUS Symbol</text>
+              <!-- VDD rail -->
+              <line x1="30" y1="35" x2="120" y2="35" stroke="#999" stroke-width="2"/>
+              <!-- NMOS device -->
+              <rect x="50" y="45" width="40" height="30" fill="none" stroke="#ff6b4a" stroke-width="2"/>
+              <line x1="70" y1="62" x2="90" y2="62" stroke="#ff6b4a" stroke-width="2"/>
+              <text x="75" y="78" text-anchor="middle" font-size="10" fill="#ff6b4a">NMOS</text>
+              <!-- WL input -->
+              <line x1="10" y1="62" x2="50" y2="62" stroke="#9370db" stroke-width="2"/>
+              <text x="35" y="55" text-anchor="middle" font-size="10" fill="#9370db">WL</text>
+              <!-- BL output -->
+              <line x1="90" y1="75" x2="90" y2="105" stroke="#ffc107" stroke-width="2"/>
+              <text x="75" y="115" text-anchor="middle" font-size="10" fill="#ffc107">BL</text>
+              <!-- GND rail at bottom -->
+              <line x1="30" y1="105" x2="120" y2="105" stroke="#999" stroke-width="2"/>
+              <text x="125" y="108" font-size="11" fill="#999">GND</text>
+              <!-- Current indicator (active) -->
+              <text id="minus-indicator" x="75" y="90" text-anchor="middle" font-size="14" fill="#999">→</text>
+            </svg>
+
+            <div class="verilog-snippet">
+              <h4>Verilog</h4>
+              <pre><code>module ROM_MINUS_X1 (WL, BL);
+  input WL;
+  output BL;
+
+  assign BL = WL ? 1'b0 : 1'bz;
+endmodule</code></pre>
+            </div>
+          </div>
+
+          <div class="cell-control">
+            <label>
+              <input type="checkbox" id="minus-wl" class="wl-toggle">
+              WL = <span id="minus-wl-val">0</span>
+            </label>
+            <p class="bl-output">BL = <span id="minus-bl-val">Z</span></p>
+          </div>
+        </div>
+
+        <!-- ROM_ZERO -->
+        <div class="cell-widget">
+          <h3>ROM_ZERO</h3>
+          <div class="cell-info">
+            <p><strong>Function:</strong> No cell (weight = 0)</p>
+            <p><strong>Transistors:</strong> <strong>0</strong> ✓</p>
+            <p><strong>Leakage:</strong> <strong>0 pA</strong> ✓</p>
+            <p><em>This is the magic: 45–60% of weights are zero, eliminating leakage by design.</em></p>
+          </div>
+
+          <div class="truth-table">
+            <h4>Truth Table</h4>
+            <table>
+              <tr>
+                <th>WL</th>
+                <th>BL</th>
+              </tr>
+              <tr class="highlight">
+                <td>0</td>
+                <td>Z (undriven)</td>
+              </tr>
+              <tr class="highlight">
+                <td>1</td>
+                <td>Z (undriven) ✓</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="symbol-and-code">
+            <svg viewBox="0 0 150 120" class="cell-symbol">
+              <text x="75" y="20" text-anchor="middle" font-size="12" fill="#999">ROM_ZERO Symbol</text>
+              <!-- Empty space indicator -->
+              <rect x="40" y="40" width="70" height="60" fill="none" stroke="#666" stroke-width="2" stroke-dasharray="4,4"/>
+              <text x="75" y="75" text-anchor="middle" font-size="14" fill="#666" font-weight="bold">Empty Space</text>
+              <text x="75" y="95" text-anchor="middle" font-size="10" fill="#666">(No transistors)</text>
+            </svg>
+
+            <div class="verilog-snippet">
+              <h4>Behavior</h4>
+              <pre><code>// No cell instantiated.
+// Wire contribution: none.
+// Bitline remains undriven
+// when this weight is selected.</code></pre>
+            </div>
+          </div>
+
+          <div class="cell-control">
+            <p class="bl-output">BL = <span id="zero-bl-val">Z</span> <span style="color: #aaa;">(always)</span></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: CELL LIBRARY EXPLORER -->
+    <section id="explorerSection" class="section">
+      <h2>Cell Library Explorer</h2>
+      <p>Select a process to explore its cell variants (drive strength, Vt flavor, leakage, delay).</p>
+
+      <div class="explorer-controls">
+        <div class="control-group">
+          <label for="processSelect">Process:</label>
+          <select id="processSelect">
+            <option value="">— Loading processes —</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="cellTypeFilter">Cell Type:</label>
+          <select id="cellTypeFilter">
+            <option value="">All</option>
+            <option value="plus">ROM_PLUS (+1)</option>
+            <option value="minus">ROM_MINUS (−1)</option>
+            <option value="zero">ROM_ZERO (0)</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="vtFlavorFilter">Vt Flavor:</label>
+          <select id="vtFlavorFilter">
+            <option value="">All</option>
+            <option value="std">Standard</option>
+            <option value="lvt">LVT (Low Vt)</option>
+            <option value="hvt">HVT (High Vt)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="explorerSummary" class="explorer-summary">
+        <div class="summary-chip" id="numCellsChip">Cells: —</div>
+        <div class="summary-chip" id="voltagechip">Voltage: —</div>
+        <div class="summary-chip" id="categoryChip">Category: —</div>
+        <div class="summary-chip" id="leakageChip">Total Leakage (all types): —</div>
+      </div>
+
+      <div class="table-wrapper">
+        <table id="cellsTable" class="cells-table">
+          <thead>
+            <tr>
+              <th>Cell Name</th>
+              <th>Type</th>
+              <th>Vt</th>
+              <th>Drive</th>
+              <th>W × H (µm)</th>
+              <th>Area (µm²)</th>
+              <th>Transistors</th>
+              <th>Leakage (pA)</th>
+              <th>Delay (ns)</th>
+            </tr>
+          </thead>
+          <tbody id="cellsTableBody">
+            <tr><td colspan="9" style="text-align: center; color: #999;">Select a process to view cells.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="leakageChart" class="leakage-chart">
+        <h4>Leakage Comparison (pA)</h4>
+        <svg id="leakageChartSvg" viewBox="0 0 400 150"></svg>
+      </div>
+    </section>
+
+    <!-- SECTION 4: VERILOG BROWSER -->
+    <section id="verilogSection" class="section">
+      <h2>Verilog Browser</h2>
+      <p>Live-parsed module listings from <code>cells.v</code> for sky130 and generic_28nm.</p>
+
+      <div class="verilog-controls">
+        <label for="verilogProcessSelect">Process:</label>
+        <select id="verilogProcessSelect">
+          <option value="sky130">sky130 (130nm)</option>
+          <option value="generic_28nm">generic_28nm (28nm)</option>
+        </select>
+      </div>
+
+      <div id="verilogBrowser" class="verilog-browser">
+        <div id="moduleList" class="module-list">
+          <p style="color: #999;">Loading modules…</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: PHYSICAL LAYOUT VIEWER -->
+    <section id="layoutSection" class="section">
+      <h2>Physical Layout Viewer</h2>
+      <p>Interactive footprint visualization parsed from LEF. Shows pin locations and cell dimensions.</p>
+
+      <div class="layout-controls">
+        <label for="layoutProcessSelect">Process:</label>
+        <select id="layoutProcessSelect">
+          <option value="sky130">sky130 (130nm)</option>
+          <option value="generic_28nm">generic_28nm (28nm)</option>
+        </select>
+      </div>
+
+      <div id="layoutViewer" class="layout-viewer">
+        <svg id="layoutSvg" viewBox="0 0 800 500"></svg>
+      </div>
+
+      <div id="layoutLegend" class="layout-legend">
+        <div class="legend-item">
+          <span class="legend-color" style="background: #1f4788;"></span> WL (Metal1)
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background: #4a9eff;"></span> BL (Metal2)
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 6: EXAMPLE: 8×8 TERNARY MAC -->
+    <section id="exampleSection" class="section">
+      <h2>Example: 8×8 Ternary MAC (TinyTapeout)</h2>
+      <p>A real 8×8 multiply-accumulate unit with ternary weights. These weights are literally wired to ROM cells.</p>
+
+      <div class="example-content">
+        <div class="weight-map">
+          <h4>Weight Map (8×8)</h4>
+          <pre id="weightMapDisplay" class="weight-display"></pre>
+          <p class="weight-map-info" id="weightMapInfo"></p>
+        </div>
+
+        <div class="example-stats">
+          <h4>Summary</h4>
+          <div id="exampleSummary" class="summary-text"></div>
+        </div>
+      </div>
+
+      <div class="verilog-browser">
+        <h4>Netlist Browser (ternary_mac.v)</h4>
+        <div id="exampleModuleList" class="module-list">
+          <p style="color: #999;">Loading netlist…</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 7: FLOW DIAGRAM -->
+    <section id="flowSection" class="section">
+      <h2>Flow: Model → Tape-Out</h2>
+      <p>The complete path from trained model to silicon.</p>
+
+      <svg viewBox="0 0 800 300" class="flow-diagram">
+        <!-- Step 1: Model -->
+        <rect x="20" y="80" width="100" height="80" fill="#2a3f8a" stroke="#4a9eff" stroke-width="2" rx="4"/>
+        <text x="70" y="105" text-anchor="middle" font-weight="bold" fill="#4a9eff">Trained</text>
+        <text x="70" y="125" text-anchor="middle" font-weight="bold" fill="#4a9eff">Model</text>
+        <text x="70" y="145" text-anchor="middle" font-size="10" fill="#aaa">(PyTorch)</text>
+
+        <!-- Arrow -->
+        <path d="M 125 120 L 155 120" stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>
+        <text x="140" y="110" font-size="10" fill="#999">weights</text>
+
+        <!-- Step 2: Ternarize -->
+        <rect x="160" y="80" width="100" height="80" fill="#2a3f8a" stroke="#4a9eff" stroke-width="2" rx="4"/>
+        <text x="210" y="110" text-anchor="middle" font-weight="bold" fill="#4a9eff">Ternarize</text>
+        <text x="210" y="130" text-anchor="middle" font-size="10" fill="#aaa">BitNet b1.58</text>
+        <text x="210" y="145" text-anchor="middle" font-size="9" fill="#aaa">{−1,0,+1}</text>
+
+        <!-- Arrow -->
+        <path d="M 265 120 L 295 120" stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+        <!-- Step 3: Netlist Gen -->
+        <rect x="300" y="80" width="100" height="80" fill="#2a3f8a" stroke="#4a9eff" stroke-width="2" rx="4"/>
+        <text x="350" y="110" text-anchor="middle" font-weight="bold" fill="#4a9eff">Netlist</text>
+        <text x="350" y="130" text-anchor="middle" font-size="10" fill="#aaa">Gen</text>
+        <text x="350" y="145" text-anchor="middle" font-size="9" fill="#aaa">ROM cells</text>
+
+        <!-- Arrow -->
+        <path d="M 405 120 L 435 120" stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+        <!-- Step 4: OpenROAD -->
+        <rect x="440" y="80" width="100" height="80" fill="#2a3f8a" stroke="#4a9eff" stroke-width="2" rx="4"/>
+        <text x="490" y="115" text-anchor="middle" font-weight="bold" fill="#4a9eff">OpenROAD</text>
+        <text x="490" y="135" text-anchor="middle" font-size="9" fill="#aaa">P&R + GDS</text>
+
+        <!-- Arrow -->
+        <path d="M 545 120 L 575 120" stroke="#999" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+        <!-- Step 5: Tape-out -->
+        <rect x="580" y="80" width="100" height="80" fill="#c41e3a" stroke="#ff6b4a" stroke-width="2" rx="4"/>
+        <text x="630" y="110" text-anchor="middle" font-weight="bold" fill="#ff6b4a">Tape-Out</text>
+        <text x="630" y="130" text-anchor="middle" font-size="10" fill="#aaa">GDS</text>
+        <text x="630" y="145" text-anchor="middle" font-size="9" fill="#aaa">→ Silicon</text>
+
+        <!-- Annotations -->
+        <text x="70" y="180" text-anchor="middle" font-size="10" fill="#999">Input: weights.npz</text>
+        <text x="210" y="180" text-anchor="middle" font-size="10" fill="#999">Cosine sim &gt; 0.95</text>
+        <text x="350" y="180" text-anchor="middle" font-size="10" fill="#999">Structural Verilog</text>
+        <text x="490" y="180" text-anchor="middle" font-size="10" fill="#999">Place, route, verify</text>
+        <text x="630" y="180" text-anchor="middle" font-size="10" fill="#999">$200K–2M cost</text>
+
+        <!-- Sensitivity analysis branch -->
+        <text x="70" y="220" font-size="11" fill="#aaa">Parallel: Sensitivity Analysis</text>
+        <text x="70" y="235" font-size="10" fill="#aaa">→ Identifies layers needing INT8 SRAM (mixed precision)</text>
+
+        <!-- Arrow marker -->
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 10 3, 0 6" fill="#999"/>
+          </marker>
+        </defs>
+      </svg>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>Built with vanilla JS/HTML/CSS. <a href="https://github.com/SuperInstance/ternary-rom" target="_blank">Source: ternary-rom</a></p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

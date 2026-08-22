@@ -1,0 +1,11 @@
+Ternary ROM Array Summary
+==================================================
+
+Layer: mac_layer
+  Shape:            8 x 8
+  ROM_PLUS cells:   16
+  ROM_MINUS cells:  28
+  ROM_ZERO cells:   20
+  Zero fraction:    0.3125
+  Estimated area:   0.000003 mm^2
+  Est. leakage:     0.000104 uW

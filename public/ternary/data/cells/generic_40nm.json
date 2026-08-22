@@ -1,0 +1,229 @@
+{
+  "process": "generic_40nm",
+  "description": "Generic 40nm LP CMOS",
+  "category": "mature",
+  "voltage": 1.1,
+  "num_cells": 20,
+  "cells": {
+    "ROM_PLUS_X1": {
+      "type": "plus",
+      "width_um": 0.45,
+      "height_um": 0.45,
+      "area_um2": 0.2025,
+      "transistors": 2,
+      "leakage_pa": 60.0,
+      "delay_ns": 1.2,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_MINUS_X1": {
+      "type": "minus",
+      "width_um": 0.45,
+      "height_um": 0.45,
+      "area_um2": 0.2025,
+      "transistors": 2,
+      "leakage_pa": 60.0,
+      "delay_ns": 1.2,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_ZERO_X1": {
+      "type": "zero",
+      "width_um": 0.45,
+      "height_um": 0.45,
+      "area_um2": 0.2025,
+      "transistors": 0,
+      "leakage_pa": 0.0,
+      "delay_ns": 0.0,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_PLUS_X1_lvt": {
+      "type": "plus",
+      "width_um": 0.45,
+      "height_um": 0.45,
+      "area_um2": 0.2025,
+      "transistors": 2,
+      "leakage_pa": 180.0,
+      "delay_ns": 0.96,
+      "drive_strength": 1,
+      "vt_flavor": "lvt"
+    },
+    "ROM_MINUS_X1_lvt": {
+      "type": "minus",
+      "width_um": 0.45,
+      "height_um": 0.45,
+      "area_um2": 0.2025,
+      "transistors": 2,
+      "leakage_pa": 180.0,
+      "delay_ns": 0.96,
+      "drive_strength": 1,
+      "vt_flavor": "lvt"
+    },
+    "ROM_ZERO_X1_lvt": {
+      "type": "zero",
+      "width_um": 0.45,
+      "height_um": 0.45,
+      "area_um2": 0.2025,
+      "transistors": 0,
+      "leakage_pa": 0.0,
+      "delay_ns": 0.0,
+      "drive_strength": 1,
+      "vt_flavor": "lvt"
+    },
+    "ROM_PLUS_X1_hvt": {
+      "type": "plus",
+      "width_um": 0.45,
+      "height_um": 0.45,
+      "area_um2": 0.2025,
+      "transistors": 2,
+      "leakage_pa": 9.0,
+      "delay_ns": 1.56,
+      "drive_strength": 1,
+      "vt_flavor": "hvt"
+    },
+    "ROM_MINUS_X1_hvt": {
+      "type": "minus",
+      "width_um": 0.45,
+      "height_um": 0.45,
+      "area_um2": 0.2025,
+      "transistors": 2,
+      "leakage_pa": 9.0,
+      "delay_ns": 1.56,
+      "drive_strength": 1,
+      "vt_flavor": "hvt"
+    },
+    "ROM_ZERO_X1_hvt": {
+      "type": "zero",
+      "width_um": 0.45,
+      "height_um": 0.45,
+      "area_um2": 0.2025,
+      "transistors": 0,
+      "leakage_pa": 0.0,
+      "delay_ns": 0.0,
+      "drive_strength": 1,
+      "vt_flavor": "hvt"
+    },
+    "ROM_PLUS_X2": {
+      "type": "plus",
+      "width_um": 0.9,
+      "height_um": 0.45,
+      "area_um2": 0.405,
+      "transistors": 2,
+      "leakage_pa": 120.0,
+      "delay_ns": 0.78,
+      "drive_strength": 2,
+      "vt_flavor": "std"
+    },
+    "ROM_MINUS_X2": {
+      "type": "minus",
+      "width_um": 0.9,
+      "height_um": 0.45,
+      "area_um2": 0.405,
+      "transistors": 2,
+      "leakage_pa": 120.0,
+      "delay_ns": 0.78,
+      "drive_strength": 2,
+      "vt_flavor": "std"
+    },
+    "ROM_ZERO_X2": {
+      "type": "zero",
+      "width_um": 0.9,
+      "height_um": 0.45,
+      "area_um2": 0.405,
+      "transistors": 0,
+      "leakage_pa": 0.0,
+      "delay_ns": 0.0,
+      "drive_strength": 2,
+      "vt_flavor": "std"
+    },
+    "ROM_PLUS_X2_lvt": {
+      "type": "plus",
+      "width_um": 0.9,
+      "height_um": 0.45,
+      "area_um2": 0.405,
+      "transistors": 2,
+      "leakage_pa": 360.0,
+      "delay_ns": 0.624,
+      "drive_strength": 2,
+      "vt_flavor": "lvt"
+    },
+    "ROM_MINUS_X2_lvt": {
+      "type": "minus",
+      "width_um": 0.9,
+      "height_um": 0.45,
+      "area_um2": 0.405,
+      "transistors": 2,
+      "leakage_pa": 360.0,
+      "delay_ns": 0.624,
+      "drive_strength": 2,
+      "vt_flavor": "lvt"
+    },
+    "ROM_ZERO_X2_lvt": {
+      "type": "zero",
+      "width_um": 0.9,
+      "height_um": 0.45,
+      "area_um2": 0.405,
+      "transistors": 0,
+      "leakage_pa": 0.0,
+      "delay_ns": 0.0,
+      "drive_strength": 2,
+      "vt_flavor": "lvt"
+    },
+    "ROM_PLUS_X2_hvt": {
+      "type": "plus",
+      "width_um": 0.9,
+      "height_um": 0.45,
+      "area_um2": 0.405,
+      "transistors": 2,
+      "leakage_pa": 18.0,
+      "delay_ns": 1.014,
+      "drive_strength": 2,
+      "vt_flavor": "hvt"
+    },
+    "ROM_MINUS_X2_hvt": {
+      "type": "minus",
+      "width_um": 0.9,
+      "height_um": 0.45,
+      "area_um2": 0.405,
+      "transistors": 2,
+      "leakage_pa": 18.0,
+      "delay_ns": 1.014,
+      "drive_strength": 2,
+      "vt_flavor": "hvt"
+    },
+    "ROM_ZERO_X2_hvt": {
+      "type": "zero",
+      "width_um": 0.9,
+      "height_um": 0.45,
+      "area_um2": 0.405,
+      "transistors": 0,
+      "leakage_pa": 0.0,
+      "delay_ns": 0.0,
+      "drive_strength": 2,
+      "vt_flavor": "hvt"
+    },
+    "ROM_REF_HI": {
+      "type": "ref_hi",
+      "width_um": 0.45,
+      "height_um": 0.45,
+      "area_um2": 0.2025,
+      "transistors": 2,
+      "leakage_pa": 60.0,
+      "delay_ns": 1.2,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_REF_LO": {
+      "type": "ref_lo",
+      "width_um": 0.45,
+      "height_um": 0.45,
+      "area_um2": 0.2025,
+      "transistors": 2,
+      "leakage_pa": 60.0,
+      "delay_ns": 1.2,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    }
+  }
+}

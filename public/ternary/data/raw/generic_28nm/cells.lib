@@ -1,0 +1,824 @@
+library(ternary_rom_generic_28nm) {
+  technology (cmos) ;
+  delay_model : generic_cmos ;
+  time_unit : "1ns" ;
+  voltage_unit : "1V" ;
+  capacitive_load_unit (1.0, pf) ;
+  leakage_power_unit : "1pW" ;
+
+  default_operating_conditions (nom) {
+    voltage : 1.00 ;
+  }
+
+  lu_table_template(delay_template_1x1) {
+    variable_1 : input_net_transition ;
+    variable_2 : total_output_net_capacitance ;
+    index_1 ("0.010") ;
+    index_2 ("0.020") ;
+  }
+
+  cell (ROM_PLUS_X1_hvt) {
+    area : 0.048400 ;
+    cell_leakage_power : 0.355500 ;
+    // Drive: X1, Vt: hvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 0.500 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : positive_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.6500") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.1000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_PLUS_X1_lvt) {
+    area : 0.048400 ;
+    cell_leakage_power : 7.110000 ;
+    // Drive: X1, Vt: lvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 0.500 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : positive_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.4000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.1000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_PLUS_X1) {
+    area : 0.048400 ;
+    cell_leakage_power : 2.370000 ;
+    // Drive: X1, Vt: std
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 0.500 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : positive_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.5000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.1000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_PLUS_X2_hvt) {
+    area : 0.096800 ;
+    cell_leakage_power : 0.711000 ;
+    // Drive: X2, Vt: hvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 1.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : positive_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.4225") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0500") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_PLUS_X2_lvt) {
+    area : 0.096800 ;
+    cell_leakage_power : 14.220000 ;
+    // Drive: X2, Vt: lvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 1.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : positive_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.2600") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0500") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_PLUS_X2) {
+    area : 0.096800 ;
+    cell_leakage_power : 4.740000 ;
+    // Drive: X2, Vt: std
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 1.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : positive_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.3250") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0500") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_PLUS_X4_hvt) {
+    area : 0.193600 ;
+    cell_leakage_power : 1.422000 ;
+    // Drive: X4, Vt: hvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 2.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : positive_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.2925") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0250") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_PLUS_X4_lvt) {
+    area : 0.193600 ;
+    cell_leakage_power : 28.440000 ;
+    // Drive: X4, Vt: lvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 2.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : positive_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.1800") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0250") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_PLUS_X4) {
+    area : 0.193600 ;
+    cell_leakage_power : 9.480000 ;
+    // Drive: X4, Vt: std
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 2.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : positive_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.2250") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0250") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_MINUS_X1_hvt) {
+    area : 0.048400 ;
+    cell_leakage_power : 0.355500 ;
+    // Drive: X1, Vt: hvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 0.500 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : negative_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.6500") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.1000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_MINUS_X1_lvt) {
+    area : 0.048400 ;
+    cell_leakage_power : 7.110000 ;
+    // Drive: X1, Vt: lvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 0.500 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : negative_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.4000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.1000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_MINUS_X1) {
+    area : 0.048400 ;
+    cell_leakage_power : 2.370000 ;
+    // Drive: X1, Vt: std
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 0.500 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : negative_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.5000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.1000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_MINUS_X2_hvt) {
+    area : 0.096800 ;
+    cell_leakage_power : 0.711000 ;
+    // Drive: X2, Vt: hvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 1.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : negative_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.4225") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0500") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_MINUS_X2_lvt) {
+    area : 0.096800 ;
+    cell_leakage_power : 14.220000 ;
+    // Drive: X2, Vt: lvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 1.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : negative_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.2600") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0500") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_MINUS_X2) {
+    area : 0.096800 ;
+    cell_leakage_power : 4.740000 ;
+    // Drive: X2, Vt: std
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 1.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : negative_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.3250") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0500") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_MINUS_X4_hvt) {
+    area : 0.193600 ;
+    cell_leakage_power : 1.422000 ;
+    // Drive: X4, Vt: hvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 2.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : negative_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.2925") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0250") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_MINUS_X4_lvt) {
+    area : 0.193600 ;
+    cell_leakage_power : 28.440000 ;
+    // Drive: X4, Vt: lvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 2.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : negative_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.1800") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0250") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_MINUS_X4) {
+    area : 0.193600 ;
+    cell_leakage_power : 9.480000 ;
+    // Drive: X4, Vt: std
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 2.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : negative_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.2250") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0250") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_ZERO_X1_hvt) {
+    area : 0.048400 ;
+    cell_leakage_power : 0.000000 ;
+    // Drive: X1, Vt: hvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 0.500 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+    }
+  }
+
+  cell (ROM_ZERO_X1_lvt) {
+    area : 0.048400 ;
+    cell_leakage_power : 0.000000 ;
+    // Drive: X1, Vt: lvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 0.500 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+    }
+  }
+
+  cell (ROM_ZERO_X1) {
+    area : 0.048400 ;
+    cell_leakage_power : 0.000000 ;
+    // Drive: X1, Vt: std
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 0.500 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+    }
+  }
+
+  cell (ROM_ZERO_X2_hvt) {
+    area : 0.096800 ;
+    cell_leakage_power : 0.000000 ;
+    // Drive: X2, Vt: hvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 1.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+    }
+  }
+
+  cell (ROM_ZERO_X2_lvt) {
+    area : 0.096800 ;
+    cell_leakage_power : 0.000000 ;
+    // Drive: X2, Vt: lvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 1.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+    }
+  }
+
+  cell (ROM_ZERO_X2) {
+    area : 0.096800 ;
+    cell_leakage_power : 0.000000 ;
+    // Drive: X2, Vt: std
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 1.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+    }
+  }
+
+  cell (ROM_ZERO_X4_hvt) {
+    area : 0.193600 ;
+    cell_leakage_power : 0.000000 ;
+    // Drive: X4, Vt: hvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 2.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+    }
+  }
+
+  cell (ROM_ZERO_X4_lvt) {
+    area : 0.193600 ;
+    cell_leakage_power : 0.000000 ;
+    // Drive: X4, Vt: lvt
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 2.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+    }
+  }
+
+  cell (ROM_ZERO_X4) {
+    area : 0.193600 ;
+    cell_leakage_power : 0.000000 ;
+    // Drive: X4, Vt: std
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 2.000 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+    }
+  }
+
+  cell (ROM_REF_HI) {
+    area : 0.048400 ;
+    cell_leakage_power : 2.370000 ;
+    // Drive: X1, Vt: std
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 0.500 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : positive_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.5000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.1000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+      }
+    }
+  }
+
+  cell (ROM_REF_LO) {
+    area : 0.048400 ;
+    cell_leakage_power : 2.370000 ;
+    // Drive: X1, Vt: std
+
+    pin (WL) {
+      direction : input ;
+      capacitance : 0.500 ;
+    }
+
+    pin (BL) {
+      direction : output ;
+      max_capacitance : 0.500 ;
+      timing () {
+        related_pin : "WL" ;
+        timing_sense : negative_unate ;
+
+        cell_rise (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        rise_transition (delay_template_1x1) {
+          values ("0.0000") ;
+        }
+        cell_fall (delay_template_1x1) {
+          values ("0.5000") ;
+        }
+        fall_transition (delay_template_1x1) {
+          values ("0.1000") ;
+        }
+      }
+    }
+  }
+
+}

@@ -1,0 +1,163 @@
+{
+  "process": "sky130",
+  "description": "SkyWater 130nm open-source process (TinyTapeout compatible)",
+  "category": "open_source",
+  "voltage": 3.3,
+  "num_cells": 14,
+  "cells": {
+    "ROM_PLUS_X1": {
+      "type": "plus",
+      "width_um": 1.22,
+      "height_um": 1.22,
+      "area_um2": 1.4884,
+      "transistors": 2,
+      "leakage_pa": 15.0,
+      "delay_ns": 2.5,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_MINUS_X1": {
+      "type": "minus",
+      "width_um": 1.22,
+      "height_um": 1.22,
+      "area_um2": 1.4884,
+      "transistors": 2,
+      "leakage_pa": 15.0,
+      "delay_ns": 2.5,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_ZERO_X1": {
+      "type": "zero",
+      "width_um": 1.22,
+      "height_um": 1.22,
+      "area_um2": 1.4884,
+      "transistors": 0,
+      "leakage_pa": 0.0,
+      "delay_ns": 0.0,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_PLUS_X1_lvt": {
+      "type": "plus",
+      "width_um": 1.22,
+      "height_um": 1.22,
+      "area_um2": 1.4884,
+      "transistors": 2,
+      "leakage_pa": 45.0,
+      "delay_ns": 2.0,
+      "drive_strength": 1,
+      "vt_flavor": "lvt"
+    },
+    "ROM_MINUS_X1_lvt": {
+      "type": "minus",
+      "width_um": 1.22,
+      "height_um": 1.22,
+      "area_um2": 1.4884,
+      "transistors": 2,
+      "leakage_pa": 45.0,
+      "delay_ns": 2.0,
+      "drive_strength": 1,
+      "vt_flavor": "lvt"
+    },
+    "ROM_ZERO_X1_lvt": {
+      "type": "zero",
+      "width_um": 1.22,
+      "height_um": 1.22,
+      "area_um2": 1.4884,
+      "transistors": 0,
+      "leakage_pa": 0.0,
+      "delay_ns": 0.0,
+      "drive_strength": 1,
+      "vt_flavor": "lvt"
+    },
+    "ROM_PLUS_X2": {
+      "type": "plus",
+      "width_um": 2.44,
+      "height_um": 1.22,
+      "area_um2": 2.9768,
+      "transistors": 2,
+      "leakage_pa": 30.0,
+      "delay_ns": 1.625,
+      "drive_strength": 2,
+      "vt_flavor": "std"
+    },
+    "ROM_MINUS_X2": {
+      "type": "minus",
+      "width_um": 2.44,
+      "height_um": 1.22,
+      "area_um2": 2.9768,
+      "transistors": 2,
+      "leakage_pa": 30.0,
+      "delay_ns": 1.625,
+      "drive_strength": 2,
+      "vt_flavor": "std"
+    },
+    "ROM_ZERO_X2": {
+      "type": "zero",
+      "width_um": 2.44,
+      "height_um": 1.22,
+      "area_um2": 2.9768,
+      "transistors": 0,
+      "leakage_pa": 0.0,
+      "delay_ns": 0.0,
+      "drive_strength": 2,
+      "vt_flavor": "std"
+    },
+    "ROM_PLUS_X2_lvt": {
+      "type": "plus",
+      "width_um": 2.44,
+      "height_um": 1.22,
+      "area_um2": 2.9768,
+      "transistors": 2,
+      "leakage_pa": 90.0,
+      "delay_ns": 1.3,
+      "drive_strength": 2,
+      "vt_flavor": "lvt"
+    },
+    "ROM_MINUS_X2_lvt": {
+      "type": "minus",
+      "width_um": 2.44,
+      "height_um": 1.22,
+      "area_um2": 2.9768,
+      "transistors": 2,
+      "leakage_pa": 90.0,
+      "delay_ns": 1.3,
+      "drive_strength": 2,
+      "vt_flavor": "lvt"
+    },
+    "ROM_ZERO_X2_lvt": {
+      "type": "zero",
+      "width_um": 2.44,
+      "height_um": 1.22,
+      "area_um2": 2.9768,
+      "transistors": 0,
+      "leakage_pa": 0.0,
+      "delay_ns": 0.0,
+      "drive_strength": 2,
+      "vt_flavor": "lvt"
+    },
+    "ROM_REF_HI": {
+      "type": "ref_hi",
+      "width_um": 1.22,
+      "height_um": 1.22,
+      "area_um2": 1.4884,
+      "transistors": 2,
+      "leakage_pa": 15.0,
+      "delay_ns": 2.5,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    },
+    "ROM_REF_LO": {
+      "type": "ref_lo",
+      "width_um": 1.22,
+      "height_um": 1.22,
+      "area_um2": 1.4884,
+      "transistors": 2,
+      "leakage_pa": 15.0,
+      "delay_ns": 2.5,
+      "drive_strength": 1,
+      "vt_flavor": "std"
+    }
+  }
+}
