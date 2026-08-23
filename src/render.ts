@@ -328,6 +328,58 @@ export interface TrailCell {
   href: string;
 }
 
+export interface YardSignal {
+  signal: string;
+  count: number;
+  last: Record<string, any>;
+  t: number;
+}
+
+function yardPanelHtml(yard: YardSignal[]): string {
+  const rows = yard
+    .map(
+      (y) =>
+        `<tr><td><code>${escapeHtml(y.signal)}</code></td><td class="ynum">${y.count}</td>` +
+        `<td>${escapeHtml(Object.entries(y.last || {}).map(([k, v]) => `${k}=${String(v)}`).join(' ') || '—')}</td></tr>`,
+    )
+    .join('');
+  const rowsHtml = rows || '<tr><td colspan="3" class="yquiet">quiet — no telemetry yet (opt-in only)</td></tr>';
+  return (
+    `<section class="yard" id="live-yard"><h2 class="th2">Live Yard` +
+    `<span class="tcount" id="yard-total">${yard.reduce((s, y) => s + y.count, 0)} signals</span></h2>` +
+    `<p class="groupnote">Anonymous, opt-in game telemetry (USCP) — one quilt cell per signal kind, latest-wins, ` +
+    `sheet <code>telemetry</code>. No names, no text, nothing personal. Polled every 10 s.</p>` +
+    `<table class="ytable"><thead><tr><th>signal</th><th>count</th><th>last</th></tr></thead>` +
+    `<tbody id="yard-rows">${rowsHtml}</tbody></table></section>` +
+    `<script>
+(function pollYard() {
+  var last = 0;
+  function refresh() {
+    fetch('/api/uscp', { headers: { Accept: 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.yard) return;
+        var rows = j.yard.map(function (y) {
+          var lastStr = Object.keys(y.last || {}).map(function (k) { return k + '=' + y.last[k]; }).join(' ') || '\u2014';
+          return '<tr><td><code>' + y.signal + '</code></td><td class="ynum">' + y.count + '</td><td>' + lastStr + '</td></tr>';
+        }).join('') || '<tr><td colspan="3" class="yquiet">quiet \u2014 no telemetry yet (opt-in only)</td></tr>';
+        var tbody = document.getElementById('yard-rows');
+        if (tbody) tbody.innerHTML = rows;
+        var tot = document.getElementById('yard-total');
+        if (tot) tot.textContent = j.yard.reduce(function (s, y) { return s + y.count; }, 0) + ' signals';
+      })
+      .catch(function () { /* quiet yard: panel just goes stale */ });
+  }
+  setInterval(function () {
+    var now = Date.now();
+    if (now - last > 10000) { last = now; refresh(); }
+  }, 10000);
+  refresh();
+})();
+</script>`
+  );
+}
+
 function cardHtml(c: CardCell): string {
   const links = (c.links || [])
     .map((l) => `<a href="${l.href}">${escapeHtml(l.label)}</a>`)
@@ -366,6 +418,7 @@ export function renderLobby(
   trailsCount: number,
   logCount: number | null,
   total: number,
+  yard: YardSignal[] = [],
 ): string {
   const cardHtmlAll = cards.map(cardHtml).join('');
   const trailsSection = trails.length ? trailsHtml(trailsNote || '', trails) : '';
@@ -380,6 +433,7 @@ export function renderLobby(
   <div class="lede">${escapeHtml(greeting)}</div>
   <div class="cards">${cardHtmlAll}</div>
   ${trailsSection}
+  ${yardPanelHtml(yard)}
   ${quiltLine}
 </div>`;
   return page('Fleet Static Host', 'The Fleet <em>&mdash; everything, one place</em>', null, body);

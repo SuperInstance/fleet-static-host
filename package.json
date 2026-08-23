@@ -10,7 +10,9 @@
     "db:migrate:local": "wrangler d1 migrations apply quilt-fleet-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply quilt-fleet-db --remote",
     "seed:build": "python3 seed/build_seed.py",
-    "seed:push": "bash seed/push.sh"
+    "seed:push": "bash seed/push.sh",
+    "test": "node --experimental-strip-types tests/uscp.test.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250810.0",
