@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SCRAPCRAFT — Junk Never Looked So Good</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🔩</text></svg>">
   <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
     body { background:#111; overflow:hidden; font-family:'Courier New',monospace; }
@@ -81,10 +82,10 @@
       background:rgba(0,0,0,0.82); border:1px solid #f0b429;
       padding:6px 20px; border-radius:20px;
       font-size:12px; color:#f0b429; letter-spacing:3px;
-      opacity:0; pointer-events:none;
-      transition: opacity 0.3s, transform 0.3s;
+      opacity:0; pointer-events:none; visibility:hidden;
+      transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
     }
-    #zone-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    #zone-toast.show { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); }
 
     /* Block label — just above crosshair */
     #block-label {
@@ -214,9 +215,9 @@
       background:rgba(0,10,5,0.93); border:1px solid #1a5a2a;
       border-radius:6px; padding:8px 10px;
       font-family:'Courier New',monospace; font-size:9px;
-      opacity:0; transition:opacity 0.35s ease; pointer-events:none;
+      opacity:0; visibility:hidden; transition:opacity 0.35s ease, visibility 0.35s ease; pointer-events:none;
     }
-    #bot-speech-card.show { opacity:1; }
+    #bot-speech-card.show { opacity:1; visibility:visible; }
     #bsc-name {
       color:#00ff99; font-size:10px; font-weight:bold;
       letter-spacing:1px; margin-bottom:4px;
@@ -415,11 +416,11 @@
       width:min(420px, 88vw);
       background:rgba(10,12,16,0.94); border:1px solid #6a5a2a; border-radius:12px;
       padding:22px 26px 18px; z-index:600;
-      opacity:0; pointer-events:none;
-      transition:opacity 0.35s ease, transform 0.35s ease;
+      opacity:0; pointer-events:none; visibility:hidden;
+      transition:opacity 0.35s ease, transform 0.35s ease, visibility 0.35s ease;
       box-shadow:0 10px 40px rgba(0,0,0,0.6);
     }
-    #welcome-back.show { opacity:1; pointer-events:auto; transform:translate(-50%, -50%) scale(1); }
+    #welcome-back.show { opacity:1; visibility:visible; pointer-events:auto; transform:translate(-50%, -50%) scale(1); }
     #wb-title {
       font-size:20px; font-weight:bold; letter-spacing:2px; color:#f0b429;
       text-align:center; margin-bottom:2px;
@@ -482,12 +483,12 @@
       position:absolute; bottom:98px; left:50%; transform:translateX(-50%) translateY(6px);
       background:rgba(0,0,0,0.84); border:1px solid #444; border-radius:7px;
       padding:8px 18px; display:flex; align-items:center; gap:10px;
-      opacity:0; pointer-events:none;
-      transition:opacity 0.18s ease, transform 0.18s ease;
+      opacity:0; pointer-events:none; visibility:hidden;
+      transition:opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
       white-space:nowrap; max-width:340px;
     }
     #item-flash.show {
-      opacity:1; transform:translateX(-50%) translateY(0);
+      opacity:1; visibility:visible; transform:translateX(-50%) translateY(0);
     }
     .if-icon { font-size:26px; flex-shrink:0; }
     .if-text { display:flex; flex-direction:column; gap:2px; }
@@ -499,9 +500,9 @@
       position:absolute; bottom:90px; left:50%; transform:translateX(-50%);
       background:rgba(0,0,0,0.85); border:1px solid #555; border-radius:4px;
       padding:4px 10px; font-size:11px; color:#ddd; white-space:nowrap;
-      pointer-events:none; opacity:0; transition:opacity 0.1s;
+      pointer-events:none; opacity:0; visibility:hidden; transition:opacity 0.1s, visibility 0.1s;
     }
-    #hotbar-tip.show { opacity:1; }
+    #hotbar-tip.show { opacity:1; visibility:visible; }
 
     /* ── Notifications ── */
     #notifications {
@@ -575,15 +576,62 @@
       transition:background 0.15s, border-color 0.15s;
     }
     .mc-cta:hover { background:#142c14; border-color:#66cc66; }
+    /* Mission card content (renderMissionCard): step hint + brief + medals */
+    .mc-step-hint { font-size:11.5px; color:#a8d8a8; }
+    .mc-mission-brief { margin-top:6px; font-size:10.5px; color:#5a7a5a; font-style:italic; }
+    .mc-medals { margin-top:6px; font-size:11px; color:#f0b429; letter-spacing:1px; }
+
+    /* ── Cinema (cutscene director creates these; CSS stages them) ── */
+    #cs-bar-top, #cs-bar-bot {
+      position:fixed; left:0; right:0; height:11%;
+      background:#000; pointer-events:none;
+      transform:translateY(-100%);        /* parked off-screen */
+      transition:transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94);
+      z-index:88;                          /* just under the pause overlay (90) */
+    }
+    #cs-bar-top { top:0; }
+    #cs-bar-bot { bottom:0; transform:translateY(100%); }
+
+    /* Cinema subtitle — bottom band, above the lower bar */
+    #cs-subtitle {
+      position:fixed; bottom:14vh; left:50%; transform:translateX(-50%);
+      width:max-content; max-width:720px; text-align:center;
+      font-size:15px; color:#e8e8e8; line-height:1.5;
+      text-shadow:0 2px 6px rgba(0,0,0,0.95), 0 0 14px rgba(0,0,0,0.6);
+      pointer-events:none; opacity:0; transition:opacity 0.3s ease;
+      z-index:89;
+    }
+    #cs-subtitle strong {                 /* the speaker name */
+      letter-spacing:2px; color:#f0b429; margin-right:6px;
+    }
+
+    /* Skip hint — dim, top-right, non-interactive */
+    #cs-skip-hint {
+      position:fixed; top:16px; right:18px;
+      font-size:10px; color:#666; letter-spacing:2px;
+      pointer-events:none; opacity:0; transition:opacity 0.4s ease;
+      z-index:89;
+    }
+
+    /* Veteran Ride buttons (pause menu + card) — house button look */
+    .veteran-ride-btn {
+      background:rgba(0,0,0,0.7); border:1px solid #444; color:#888;
+      padding:5px 12px; border-radius:4px; font-family:inherit; font-size:10px;
+      cursor:pointer; letter-spacing:1px; transition:all 0.15s;
+    }
+    .veteran-ride-btn:hover { border-color:#f0b429; color:#f0b429; }
+    #pause-inner .pause-veteran {
+      margin-top:18px; display:flex; gap:10px; justify-content:center;
+    }
 
     /* ── Flash Receipt modal ── */
     #flash-receipt {
       position:fixed; inset:0; background:rgba(0,0,0,0.75);
       display:flex; align-items:center; justify-content:center;
-      z-index:200; opacity:0; pointer-events:none;
-      transition:opacity 0.25s ease;
+      z-index:200; opacity:0; pointer-events:none; visibility:hidden;
+      transition:opacity 0.25s ease, visibility 0.25s ease;
     }
-    #flash-receipt.show { opacity:1; pointer-events:auto; }
+    #flash-receipt.show { opacity:1; pointer-events:auto; visibility:visible; }
     .fr-card {
       background:#040c04; border:2px solid #226622;
       border-radius:12px; width:560px; max-width:95vw; max-height:90vh;
@@ -716,10 +764,10 @@
       position:absolute; top:38%; left:50%; transform:translateX(-50%);
       background:rgba(0,0,0,0.92); border:2px solid #f0b429;
       border-radius:10px; padding:18px 36px; text-align:center;
-      pointer-events:none;
-      opacity:0; transition:opacity 0.25s ease;
+      pointer-events:none; visibility:hidden;
+      opacity:0; transition:opacity 0.25s ease, visibility 0.25s ease;
     }
-    #levelup-toast.show { opacity:1; }
+    #levelup-toast.show { opacity:1; visibility:visible; }
     #levelup-toast .lu-title { color:#f0b429; font-size:20px; font-weight:bold; letter-spacing:2px; }
     #levelup-toast .lu-skill { color:#ddd; font-size:13px; margin-top:6px; }
     #levelup-toast .lu-icon  { font-size:28px; margin-bottom:4px; }
@@ -731,7 +779,7 @@
       border-radius:10px 10px 10px 0; padding:5px 11px;
       font-size:12px; color:#eee; white-space:nowrap;
       transform:translate(-50%, -110%);
-      opacity:0; transition:opacity 0.2s;
+      opacity:0; visibility:hidden; transition:opacity 0.2s, visibility 0.2s;
       z-index:200;
     }
     .bot-speech::after {
@@ -740,7 +788,7 @@
     }
     .bot-speech.bot-speech-2 { border-color:#ff8c00; }
     .bot-speech.bot-speech-2::after { border-top-color:#ff8c00; }
-    .bot-speech.show { opacity:1; }
+    .bot-speech.show { opacity:1; visibility:visible; }
 
     /* ── Help overlay (H key) ── */
     #help-overlay {
@@ -785,6 +833,13 @@
     #pause-inner h2 { font-size:36px; letter-spacing:8px; color:#f0b429; margin-bottom:12px; }
     #pause-inner p { font-size:13px; color:#888; letter-spacing:2px; }
     #pause-inner .pause-hint { margin-top:24px; font-size:11px; color:#444; }
+    #coach-mode-btn {
+      margin-top:18px; padding:8px 22px; background:#141414; color:#f0b429;
+      border:1px solid #5a4a1a; font-family:inherit; font-size:11px;
+      letter-spacing:2px; cursor:pointer; border-radius:6px;
+      transition:all 0.2s;
+    }
+    #coach-mode-btn:hover { background:#241f12; border-color:#f0b429; }
 
     /* ══ Achievement toast ══════════════════════════════════════════════ */
     #achieve-toast {
@@ -794,8 +849,9 @@
       transform:translateX(320px);
       transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
       z-index:500; pointer-events:none;
+      visibility:hidden;   /* rests out of the a11y tree until shown — rig v2 P2 */
     }
-    #achieve-toast.show { transform:translateX(0); }
+    #achieve-toast.show { transform:translateX(0); visibility:visible; }
     .ach-toast-header { color:#f0b429; font-size:10px; letter-spacing:2px; margin-bottom:6px; }
     .ach-toast-body { display:flex; align-items:center; gap:10px; }
     #ach-toast-icon { font-size:28px; }
@@ -1374,14 +1430,20 @@
     }
     #start-btn:hover { background:#ffd060; transform:scale(1.05); box-shadow:0 4px 30px #f0b42966; }
     #start-btn:active { transform:scale(0.98); }
+    #spectator-btn {
+      margin-top:12px; padding:8px 26px; background:#141414; color:#f0b429;
+      border:1px solid #5a4a1a; font-family:inherit; font-size:11px;
+      letter-spacing:2px; cursor:pointer; border-radius:6px;
+      transition:all 0.2s;
+    }
+    #spectator-btn:hover { background:#241f12; border-color:#f0b429; }
+    #spectator-btn:active { transform:scale(0.98); }
     .controls-hint { margin-top:36px; color:#333; font-size:11px; line-height:2.2; text-align:center; }
     .controls-hint span { color:#666; }
     .bands-hint { margin-top:18px; color:#2a2a2a; font-size:10px; letter-spacing:2px; }
     .bands-hint div { margin:3px 0; }
   </style>
-  <script type="module" crossorigin src="./assets/index-DJTQGWgL.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/vendor-three-BnhRFFkt.js">
-  <link rel="modulepreload" crossorigin href="./assets/maker-APqtzEXN.js">
+  <script type="module" crossorigin src="./assets/index-CuvNeM_W.js"></script>
 </head>
 <body>
 
@@ -1390,6 +1452,7 @@
     <h1>SCRAPCRAFT</h1>
     <div class="tagline">JUNK NEVER LOOKED SO GOOD</div>
     <button id="start-btn">CLOCK IN</button>
+    <button id="spectator-btn">SPECTATOR</button>
     <div class="controls-hint">
       <span>WASD</span> Move &nbsp;|&nbsp; <span>MOUSE</span> Look &nbsp;|&nbsp; <span>SPACE</span> Jump<br>
       <span>HOLD LEFT CLICK</span> Mine &nbsp;|&nbsp; <span>E</span> Workshop &nbsp;|&nbsp; <span>T</span> Maker Bench &nbsp;|&nbsp; <span>F</span> Earl<br>
@@ -1685,6 +1748,8 @@
         <div class="help-row"><span class="help-key">R</span><span class="help-desc">Respawn at the yard gate</span></div>
         <div class="help-row"><span class="help-key">I</span><span class="help-desc">Sort inventory (while inventory open)</span></div>
         <div class="help-row"><span class="help-key">N</span><span class="help-desc">Open / close Field Notes (saved locally)</span></div>
+        <div class="help-row"><span class="help-key">L</span><span class="help-desc">Open Logbook (quest memories + chapter rail)</span></div>
+        <div class="help-row"><span class="help-key">J</span><span class="help-desc">Mo's Ledger — your career record (firsts, laps, chapters)</span></div>
         <div class="help-row"><span class="help-key">U</span><span class="help-desc">Bot Workshop — install hardware upgrades</span></div>
       </div>
       <div class="help-section">
@@ -1727,7 +1792,13 @@
     <div id="pause-inner">
       <h2>PAUSED</h2>
       <p>CLICK ANYWHERE TO CONTINUE</p>
+      <button id="coach-mode-btn">📻 COACH MODE</button>
+      <button id="fullscreen-btn">⛶ FULLSCREEN [F2]</button>
       <div class="pause-hint">[ M ] MUTE &nbsp;·&nbsp; [ E ] WORKSHOP OPENS ON RESUME</div>
+      <div class="pause-veteran">
+        <button id="veteran-ride-btn" class="veteran-ride-btn">🚚 VETERAN RIDE (NEW SLOT)</button>
+        <button id="veteran-restore-btn" class="veteran-ride-btn" style="display:none">⬅ RESTORE MY SAVE</button>
+      </div>
     </div>
   </div>
 
