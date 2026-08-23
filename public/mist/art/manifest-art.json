@@ -1,210 +1,255 @@
 {
- "style": "children's storybook illustration, soft warm pastel palette, cute rounded shapes, clean soft outlines, cozy hand-painted texture, gentle warm lighting, kid-friendly",
+ "style": "classic children's picture-book illustration, soft gouache and watercolor, warm palette, gentle rounded shapes, cozy hand-painted texture (tier-A upgrade 2026-08-22)",
+ "model": "sdxl-turbo @12 steps, guidance 0.5 (shootout winner vs dreamshaper_8, anythingV5NijiMix)",
  "seedBase": 4242,
+ "qc": "every asset gated via LLaVA (@cf/llava-hf/llava-1.5-7b-hf, worker mist-art-qc); log: ~/mist-art/qc-upgrade.jsonl",
+ "notes": "scene_hero/title = re-spec (seed 6342); scene_lesson_meadow = retry (seed 5346); char_bark_portrait dropped in QC (garbled close-up face \u2014 turbo cannot do elder close-ups); anim frames f2/f3 for GUI cross-fade; lesson scenes keyed to levels.ts concepts (meadow=patterns/flocking, forest=local info/fog, fireside=knowledge distillation, sky=neural nets, rain=noise, ensemble=ensembles)",
  "assets": [
   {
    "name": "char_mist_sit",
    "path": "art/char_mist_sit.png",
-   "seed": 4242,
+   "seed": 4354,
    "size": 768
   },
   {
    "name": "char_mist_run",
    "path": "art/char_mist_run.png",
-   "seed": 4243,
+   "seed": 4355,
+   "size": 768
+  },
+  {
+   "name": "char_mist_run_f2",
+   "path": "art/char_mist_run_f2.png",
+   "seed": 4356,
+   "size": 768
+  },
+  {
+   "name": "char_mist_run_f3",
+   "path": "art/char_mist_run_f3.png",
+   "seed": 4357,
    "size": 768
   },
   {
    "name": "char_mist_bark",
    "path": "art/char_mist_bark.png",
-   "seed": 4244,
+   "seed": 4358,
    "size": 768
   },
   {
    "name": "char_bark_sit",
    "path": "art/char_bark_sit.png",
-   "seed": 4245,
+   "seed": 4359,
    "size": 768
   },
   {
    "name": "char_bark_teach",
    "path": "art/char_bark_teach.png",
-   "seed": 4246,
+   "seed": 4360,
+   "size": 768
+  },
+  {
+   "name": "char_bark_teach_f2",
+   "path": "art/char_bark_teach_f2.png",
+   "seed": 4361,
+   "size": 768
+  },
+  {
+   "name": "char_bark_teach_f3",
+   "path": "art/char_bark_teach_f3.png",
+   "seed": 4362,
    "size": 768
   },
   {
    "name": "char_sheep_wooly",
    "path": "art/char_sheep_wooly.png",
-   "seed": 4247,
+   "seed": 4363,
    "size": 768
   },
   {
    "name": "char_sheep_merino",
    "path": "art/char_sheep_merino.png",
-   "seed": 4248,
+   "seed": 4364,
    "size": 768
   },
   {
    "name": "char_sheep_suffolk",
    "path": "art/char_sheep_suffolk.png",
-   "seed": 4249,
+   "seed": 4365,
    "size": 768
   },
   {
    "name": "char_ram",
    "path": "art/char_ram.png",
-   "seed": 4250,
+   "seed": 4366,
+   "size": 768
+  },
+  {
+   "name": "char_mist_portrait",
+   "path": "art/char_mist_portrait.png",
+   "seed": 4353,
    "size": 768
   },
   {
    "name": "tile_grass",
    "path": "art/tile_grass.png",
-   "seed": 4251,
+   "seed": 4367,
    "size": 512
   },
   {
    "name": "tile_field",
    "path": "art/tile_field.png",
-   "seed": 4252,
+   "seed": 4368,
    "size": 512
   },
   {
    "name": "tile_water",
    "path": "art/tile_water.png",
-   "seed": 4253,
+   "seed": 4369,
    "size": 512
   },
   {
    "name": "tile_tree",
    "path": "art/tile_tree.png",
-   "seed": 4254,
+   "seed": 4370,
    "size": 512
   },
   {
    "name": "tile_rock",
    "path": "art/tile_rock.png",
-   "seed": 4255,
+   "seed": 4371,
    "size": 512
   },
   {
    "name": "tile_fence",
    "path": "art/tile_fence.png",
-   "seed": 4256,
+   "seed": 4372,
    "size": 512
   },
   {
    "name": "tile_gate",
    "path": "art/tile_gate.png",
-   "seed": 4257,
+   "seed": 4373,
    "size": 512
   },
   {
    "name": "tile_barn",
    "path": "art/tile_barn.png",
-   "seed": 4258,
+   "seed": 4374,
    "size": 512
   },
   {
    "name": "tile_kennel",
    "path": "art/tile_kennel.png",
-   "seed": 4259,
+   "seed": 4375,
    "size": 512
   },
   {
    "name": "tile_flower",
    "path": "art/tile_flower.png",
-   "seed": 4260,
+   "seed": 4376,
    "size": 512
   },
   {
    "name": "tile_mushroom",
    "path": "art/tile_mushroom.png",
-   "seed": 4261,
+   "seed": 4377,
    "size": 512
   },
   {
    "name": "tile_cave",
    "path": "art/tile_cave.png",
-   "seed": 4262,
+   "seed": 4378,
    "size": 512
   },
   {
    "name": "tile_crystal",
    "path": "art/tile_crystal.png",
-   "seed": 4263,
+   "seed": 4379,
    "size": 512
   },
   {
    "name": "tile_campfire",
    "path": "art/tile_campfire.png",
-   "seed": 4264,
+   "seed": 4380,
    "size": 512
   },
   {
    "name": "tile_path",
    "path": "art/tile_path.png",
-   "seed": 4265,
+   "seed": 4381,
    "size": 512
   },
   {
    "name": "tile_mountain",
    "path": "art/tile_mountain.png",
-   "seed": 4266,
+   "seed": 4382,
    "size": 512
   },
   {
    "name": "tile_pen",
    "path": "art/tile_pen.png",
-   "seed": 4267,
+   "seed": 4383,
    "size": 512
   },
   {
    "name": "scene_hero",
    "path": "art/scene_hero.jpg",
-   "seed": 4268,
-   "size": 896
+   "seed": 6342,
+   "size": 1024
   },
   {
    "name": "scene_card_meadow",
    "path": "art/scene_card_meadow.jpg",
-   "seed": 4269,
-   "size": 896
+   "seed": 4343,
+   "size": 1024
   },
   {
    "name": "scene_card_forest",
    "path": "art/scene_card_forest.jpg",
-   "seed": 4270,
-   "size": 896
+   "seed": 4344,
+   "size": 1024
   },
   {
    "name": "scene_card_mountain",
    "path": "art/scene_card_mountain.jpg",
-   "seed": 4271,
-   "size": 896
+   "seed": 4345,
+   "size": 1024
   },
   {
    "name": "scene_lesson_meadow",
    "path": "art/scene_lesson_meadow.jpg",
-   "seed": 4272,
-   "size": 896
+   "seed": 5346,
+   "size": 1024
   },
   {
    "name": "scene_lesson_forest",
    "path": "art/scene_lesson_forest.jpg",
-   "seed": 4273,
-   "size": 896
+   "seed": 4347,
+   "size": 1024
   },
   {
    "name": "scene_lesson_fireside",
    "path": "art/scene_lesson_fireside.jpg",
-   "seed": 4274,
-   "size": 896
+   "seed": 4348,
+   "size": 1024
   },
   {
    "name": "scene_lesson_sky",
    "path": "art/scene_lesson_sky.jpg",
-   "seed": 4275,
-   "size": 896
+   "seed": 4349,
+   "size": 1024
+  },
+  {
+   "name": "scene_lesson_rain",
+   "path": "art/scene_lesson_rain.jpg",
+   "seed": 4350,
+   "size": 1024
+  },
+  {
+   "name": "scene_lesson_ensemble",
+   "path": "art/scene_lesson_ensemble.jpg",
+   "seed": 4351,
+   "size": 1024
   }
  ]
 }
