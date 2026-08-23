@@ -545,7 +545,8 @@ CARDS = [
 TRAIL_NOTE = (
     "Trails, verdicts, and negative results are first-class content — a trail that ends "
     "in a booked miss still taught its price. Entries are quilt cells (sheet <code>trails</code>) "
-    "in D1; every edit is on the Lamport timeline at <code>/api/quilt/history/trails/&lt;cell&gt;</code>."
+    "in D1: inspect any cell at <code>/api/quilt/cell/trails/&lt;cell&gt;</code>; live edits land "
+    "on the Lamport timeline at <code>/api/quilt/history/trails/&lt;cell&gt;</code>."
 )
 
 TRAIL_LOG = [
