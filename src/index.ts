@@ -19,7 +19,7 @@
 // =============================================================================
 
 import { D1Storage, QuiltEngine, type Sheet } from './quilt';
-import { page, renderDoc, renderIndex, renderLobby, type DocCell, type IndexCell, type CardCell } from './render';
+import { page, renderDoc, renderIndex, renderLobby, type DocCell, type IndexCell, type CardCell, type TrailCell } from './render';
 
 export interface Env {
   DB: D1Database;
@@ -310,6 +310,7 @@ async function handleLobby(req: Request, env: Env): Promise<Response> {
     const cardOrder = value('lobby.cards') as string[] | undefined;
     const pieces = value('lobby.pieces') as number | undefined;
     const trails = value('lobby.trails') as number | undefined;
+    const log = value('lobby.log') as number | undefined;
     const formulaCell = cells.find((c) => c.id === 'lobby.total');
 
     // Formula cell: quilt semantics (deps -> expr) but evaluated with the safe
@@ -322,7 +323,11 @@ async function handleLobby(req: Request, env: Env): Promise<Response> {
       formulaCell?.config.expr
         ? safeEvalArithmetic(formulaCell.config.expr, envMap)
         : null;
-    const totalSafe = total ?? (typeof pieces === 'number' && typeof trails === 'number' ? pieces + trails : 0);
+    const totalSafe =
+      total ??
+      (typeof pieces === 'number' && typeof trails === 'number'
+        ? pieces + trails + (typeof log === 'number' ? log : 0)
+        : 0);
 
     if (typeof greeting !== 'string' || !Array.isArray(cardOrder)) {
       throw new Error('lobby sheet incomplete');
@@ -332,7 +337,28 @@ async function handleLobby(req: Request, env: Env): Promise<Response> {
       const c = value(id) as CardCell | undefined;
       if (c && c.href) cards.push(c);
     }
-    const body = renderLobby(greeting, cards, pieces ?? 0, trails ?? 0, totalSafe);
+
+    // Trails log (sheet `trails`) — optional by design: if the sheet is absent
+    // or empty the lobby still renders; the static fallback carries a copy.
+    let trailsNote: string | null = null;
+    let trailCells: TrailCell[] = [];
+    try {
+      const ts = await storage.load('trails');
+      const tval = (id: string): any => ts.cells.find((c) => c.id === id)?.value;
+      const order = tval('trails.index') as string[] | undefined;
+      const note = tval('trails.note') as string | undefined;
+      if (Array.isArray(order)) {
+        for (const id of order) {
+          const t = tval(id) as TrailCell | undefined;
+          if (t && t.name && t.href) trailCells.push(t);
+        }
+      }
+      if (typeof note === 'string') trailsNote = note;
+    } catch (e: any) {
+      console.error(`trails sheet unavailable, skipping section: ${e?.message}`);
+    }
+
+    const body = renderLobby(greeting, cards, trailsNote, trailCells, pieces ?? 0, trails ?? 0, typeof log === 'number' ? log : null, totalSafe);
     return html(body, 'no-cache');
   } catch (e: any) {
     console.error(`lobby fell back to static: ${e?.message}`);

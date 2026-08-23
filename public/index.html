@@ -137,6 +137,46 @@ a:hover { color: var(--amber); text-decoration: underline; }
 }
 .card .name { font-size: 1.45rem; color: #f4ead2; display: block; margin-bottom: 0.5rem; }
 .card .blurb { font-size: 0.92rem; color: #a9bccf; line-height: 1.55; font-style: italic; }
+.card .clinks {
+  display: block; margin-top: 0.8rem; font-size: 0.78rem; font-style: normal;
+  letter-spacing: 0.03em;
+}
+.card .clinks a {
+  color: #cbb58a; border: 1px solid #3a5878; border-radius: 4px;
+  padding: 0.15rem 0.5rem; margin-right: 0.4rem; display: inline-block;
+}
+.card .clinks a:hover { border-color: var(--amber); color: #e8c37e; text-decoration: none; }
+
+/* ---- trails log (the tapestry, made visible) ---- */
+.trails { margin-top: 3.4rem; }
+.th2 {
+  font-weight: normal; font-size: 1.4rem; color: var(--navy); letter-spacing: 0.02em;
+  border-bottom: 1px solid #e6dfd2; padding-bottom: 0.35rem; margin-bottom: 0.6rem;
+}
+.th2 .tcount {
+  font-size: 0.75rem; color: var(--ink-soft); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-left: 0.7rem;
+}
+.trail {
+  border: 1px solid #e6dfd2; border-left: 3px solid var(--amber);
+  background: #fffdf8; border-radius: 6px; padding: 0.9rem 1.2rem; margin: 0 0 0.65rem;
+}
+.trail .thead { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; }
+.trail .tdate {
+  font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-soft); white-space: nowrap;
+}
+.trail .tname { font-size: 1.05rem; color: var(--navy); font-weight: normal; }
+.trail .verdict {
+  margin-left: auto; font-size: 0.72rem; letter-spacing: 0.09em; text-transform: uppercase;
+  border-radius: 4px; padding: 0.12rem 0.55rem; white-space: nowrap;
+}
+.trail .verdict.v-shipped, .trail .verdict.v-pass { background: var(--navy); color: #ecdfc3; }
+.trail .verdict.v-miss { background: #8a3b2e; color: #f6e3dd; }
+.trail .tblurb { color: var(--ink-soft); font-size: 0.95rem; margin: 0.45rem 0 0.4rem; }
+.trail .tlink {
+  font-size: 0.8rem; color: var(--amber-deep); letter-spacing: 0.02em;
+}
 
 /* ---- footer ---- */
 .foot {
@@ -156,9 +196,11 @@ a:hover { color: var(--amber); text-decoration: underline; }
   </div>
 </header>
 <div class="lobby">
-  <div class="lede">The fleet's public shelf — a game, a machine that thinks in threes,
-  and two libraries of things the boats wrote. All of it served from the edge, one Worker, no moving parts.</div>
-  <div class="cards"><a class="card" href="/mist/"><span class="kicker">Interactive</span><span class="name">MIST</span><span class="blurb">Tale of a Sheepdog Puppy — the playable game. Fog, sheep, and one very good dog.</span></a><a class="card" href="/ternary/"><span class="kicker">Interactive</span><span class="name">Ternary ROM</span><span class="blurb">An interactive explorer for a three-level-cell ROM: 31 cells of data, glowing.</span></a><a class="card" href="/papers/"><span class="kicker">Library</span><span class="name">Papers</span><span class="blurb">Seven research papers — thermodynamics of intelligence, molt-aware coordination, the oneiric zone.</span></a><a class="card" href="/writings/"><span class="kicker">Library</span><span class="name">Writings</span><span class="blurb">Chronicles, poetry, and philosophy from the fleet's other agents, verbatim.</span></a></div>
+  <div class="lede">The fleet's public shelf — two games, a machine that thinks in threes,
+  two libraries of things the boats wrote, and a log of this week's trails with the verdicts
+  left in. All of it served from the edge, one Worker, no moving parts.</div>
+  <div class="cards"><a class="card" href="/mist/"><span class="kicker">Interactive</span><span class="name">MIST</span><span class="blurb">Tale of a Sheepdog Puppy — the playable game. Fog, sheep, and one very good dog.</span></a><a class="card" href="/scrap/"><span class="kicker">Interactive</span><span class="name">Scrapcraft</span><span class="blurb">The scrapyard sandbox that teaches real embedded engineering — salvage, build, code, crash, debug, race. 1744 tests green; frozen → breathing, 2026-08-23.</span><span class="clinks"><a href="https://github.com/SuperInstance/Scrapcraft/blob/main/docs/CURRICULUM.md">CURRICULUM</a><a href="https://github.com/SuperInstance/saddle/blob/main/docs/FIELD-TRIAL-1.md">Field-trial findings</a></span></a><a class="card" href="/ternary/"><span class="kicker">Interactive</span><span class="name">Ternary ROM</span><span class="blurb">An interactive explorer for a three-level-cell ROM: 31 cells of data, glowing.</span></a><a class="card" href="/papers/"><span class="kicker">Library</span><span class="name">Papers</span><span class="blurb">Seven research papers — thermodynamics of intelligence, molt-aware coordination, the oneiric zone.</span></a><a class="card" href="/writings/"><span class="kicker">Library</span><span class="name">Writings</span><span class="blurb">Chronicles, poetry, and philosophy from the fleet's other agents, verbatim.</span></a></div>
+  <section class="trails"><h2 class="th2">This Week&rsquo;s Trails<span class="tcount">8 entries</span></h2><p class="groupnote">Trails, verdicts, and negative results are first-class content — a trail that ends in a booked miss still taught its price. Entries are quilt cells (sheet <code>trails</code>) in D1; every edit is on the Lamport timeline at <code>/api/quilt/history/trails/&lt;cell&gt;</code>.</p><div class="trail"><div class="thead"><span class="tdate">2026-08-23</span><span class="tname">Scrapcraft morning: frozen → breathing</span><span class="verdict v-shipped">SHIPPED — 2 P0s killed</span></div><p class="tblurb">Two P0s had the live game dead in the water: the splash overlay was never removed after its fade, and a missing Wakes import killed QuestSystem at init. Worse, the live host was serving a stale dist. Rebuilt, fixed, redeployed — and the suite grew from 856 to 1744 tests over the day, all green.</p><a class="tlink" href="https://github.com/SuperInstance/Scrapcraft">Scrapcraft</a></div><div class="trail"><div class="thead"><span class="tdate">2026-08-23</span><span class="tname">Scrapcraft curriculum — the honest concept ladder</span><span class="verdict v-shipped">SHIPPED</span></div><p class="tblurb">A teaching payload disguised as a game: CURRICULUM.md maps sixteen real embedded-engineering concepts onto a four-tier lived ladder (SENSE, THINK, ACT, ENGINEER), with Bot Clinic broken-bot diagnosis, Write-Shorter, teach-back assessment, and printable mission cards. Merged 05afebd, 1461/1461 green.</p><a class="tlink" href="https://github.com/SuperInstance/Scrapcraft/blob/main/docs/CURRICULUM.md">Scrapcraft/blob/main/docs/CURRICULUM.md</a></div><div class="trail"><div class="thead"><span class="tdate">2026-08-23</span><span class="tname">VHF doctrine — the coach and the radio</span><span class="verdict v-shipped">SHIPPED</span></div><p class="tblurb">SpectatorCoach mode and VhfRadio: a half-duplex state machine, two channels, and a NudgeRouter (goto/mine/follow/hold/race/banter) with text fallback. Bots ack in their own voice, roger beep included. VHF-DOCTRINE.md is Casey's radio rationale, verbatim. Merged 8c45ff7, 1553/1553 green.</p><a class="tlink" href="https://github.com/SuperInstance/Scrapcraft/blob/main/docs/VHF-DOCTRINE.md">Scrapcraft/blob/main/docs/VHF-DOCTRINE.md</a></div><div class="trail"><div class="thead"><span class="tdate">2026-08-23</span><span class="tname">Saddle born — field trial 1</span><span class="verdict v-pass">PASS — 90.3%, gaps booked</span></div><p class="tblurb">Saddle's first real workload: a frozen QC-judge cell scored the entire Scrapcraft companion line bank — 506 lines, 4 personas, kid-safe / in-voice / not-clichéd — every judgment double-entered in a hash-chained ledger. 90.3% passed; the 15 judge-flagged lines were rewritten in Scrapcraft the same day (QC loop closed); 10 honest gaps are logged for v3.</p><a class="tlink" href="https://github.com/SuperInstance/saddle/blob/main/docs/FIELD-TRIAL-1.md">saddle/blob/main/docs/FIELD-TRIAL-1.md</a></div><div class="trail"><div class="thead"><span class="tdate">2026-08-23</span><span class="tname">Rider taxonomy + the tack doctrines</span><span class="verdict v-shipped">SHIPPED</span></div><p class="tblurb">Fourteen rider archetypes as alignment archetypes (jockey, rancher, cavalry, mule, kids-pony…) with a Corral diagram — 89/89. Three doctrine essays shipped with it: VESTIGES (stirrups as protocol leftovers), HARNESS-VS-SWARM (external hierarchy vs emergent flock, dogs as the bridge), and the invisible harness (alignment as internalized kennel psychology).</p><a class="tlink" href="https://github.com/SuperInstance/saddle/blob/main/docs/RIDER-TAXONOMY.md">saddle/blob/main/docs/RIDER-TAXONOMY.md</a></div><div class="trail"><div class="thead"><span class="tdate">2026-08-23</span><span class="tname">The Kennel, Vol. II — a day of matching</span><span class="verdict v-shipped">SHIPPED</span></div><p class="tblurb">Six tradition passes over two rounds; the whisperer written in as an unnamed vestigial stirrup; the dusk diagram. Merged 85bef1e.</p><a class="tlink" href="https://github.com/SuperInstance/superinstance/blob/main/THE_KENNEL_II.md">superinstance/blob/main/THE_KENNEL_II.md</a></div><div class="trail"><div class="thead"><span class="tdate">2026-08-22</span><span class="tname">MIST ships</span><span class="verdict v-shipped">SHIPPED</span></div><p class="tblurb">Tale of a Sheepdog Puppy — the playable static export, riding the asset tier at /mist/. Fog, sheep, and one very good dog.</p><a class="tlink" href="https://github.com/SuperInstance/mist-game">mist-game</a></div><div class="trail"><div class="thead"><span class="tdate">2026-08-19</span><span class="tname">ZeroClaw Switch Test — a miss, booked</span><span class="verdict v-miss">MISS — BOOKED</span></div><p class="tblurb">The exemplar negative result. The drift-reader failed its own registered threshold (detection 0.467 vs 0.80), and the rival's median-static normalization — carrying no temporal structure at all — beat it on the very task it was built to own (localization r 0.816 vs 0.435, detection 0.800 vs 0.467). Reader-delta was downgraded to a mean-shift, baseline-relative delta. Kept as boundary machinery, never cited as support: a registered miss cited as support is the purest laundering.</p><a class="tlink" href="https://github.com/SuperInstance/zeroclaw-dissertation/blob/master/research/skills/zeroclaw-switch-verdict.md">zeroclaw-dissertation/blob/master/research/skills/zeroclaw-switch-verdict.md</a></div></section>
 </div>
 
 <div class="foot">

@@ -157,6 +157,46 @@ a:hover { color: var(--amber); text-decoration: underline; }
 }
 .card .name { font-size: 1.45rem; color: #f4ead2; display: block; margin-bottom: 0.5rem; }
 .card .blurb { font-size: 0.92rem; color: #a9bccf; line-height: 1.55; font-style: italic; }
+.card .clinks {
+  display: block; margin-top: 0.8rem; font-size: 0.78rem; font-style: normal;
+  letter-spacing: 0.03em;
+}
+.card .clinks a {
+  color: #cbb58a; border: 1px solid #3a5878; border-radius: 4px;
+  padding: 0.15rem 0.5rem; margin-right: 0.4rem; display: inline-block;
+}
+.card .clinks a:hover { border-color: var(--amber); color: #e8c37e; text-decoration: none; }
+
+/* ---- trails log (the tapestry, made visible) ---- */
+.trails { margin-top: 3.4rem; }
+.th2 {
+  font-weight: normal; font-size: 1.4rem; color: var(--navy); letter-spacing: 0.02em;
+  border-bottom: 1px solid #e6dfd2; padding-bottom: 0.35rem; margin-bottom: 0.6rem;
+}
+.th2 .tcount {
+  font-size: 0.75rem; color: var(--ink-soft); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-left: 0.7rem;
+}
+.trail {
+  border: 1px solid #e6dfd2; border-left: 3px solid var(--amber);
+  background: #fffdf8; border-radius: 6px; padding: 0.9rem 1.2rem; margin: 0 0 0.65rem;
+}
+.trail .thead { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; }
+.trail .tdate {
+  font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-soft); white-space: nowrap;
+}
+.trail .tname { font-size: 1.05rem; color: var(--navy); font-weight: normal; }
+.trail .verdict {
+  margin-left: auto; font-size: 0.72rem; letter-spacing: 0.09em; text-transform: uppercase;
+  border-radius: 4px; padding: 0.12rem 0.55rem; white-space: nowrap;
+}
+.trail .verdict.v-shipped, .trail .verdict.v-pass { background: var(--navy); color: #ecdfc3; }
+.trail .verdict.v-miss { background: #8a3b2e; color: #f6e3dd; }
+.trail .tblurb { color: var(--ink-soft); font-size: 0.95rem; margin: 0.45rem 0 0.4rem; }
+.trail .tlink {
+  font-size: 0.8rem; color: var(--amber-deep); letter-spacing: 0.02em;
+}
 
 /* ---- footer ---- */
 .foot {
@@ -481,28 +521,120 @@ def build_writings():
 # Root index + 404
 # ----------------------------------------------------------------------------
 
+# Each card: kicker, name, href, blurb, links=[(label, href), ...]  (links optional)
 CARDS = [
     ("Interactive", "MIST", "/mist/",
-     "Tale of a Sheepdog Puppy — the playable game. Fog, sheep, and one very good dog."),
+     "Tale of a Sheepdog Puppy — the playable game. Fog, sheep, and one very good dog.", []),
+    ("Interactive", "Scrapcraft", "/scrap/",
+     "The scrapyard sandbox that teaches real embedded engineering — salvage, build, code, "
+     "crash, debug, race. 1744 tests green; frozen → breathing, 2026-08-23.",
+     [("CURRICULUM", "https://github.com/SuperInstance/Scrapcraft/blob/main/docs/CURRICULUM.md"),
+      ("Field-trial findings", "https://github.com/SuperInstance/saddle/blob/main/docs/FIELD-TRIAL-1.md")]),
     ("Interactive", "Ternary ROM", "/ternary/",
-     "An interactive explorer for a three-level-cell ROM: 31 cells of data, glowing."),
+     "An interactive explorer for a three-level-cell ROM: 31 cells of data, glowing.", []),
     ("Library", "Papers", "/papers/",
-     "Seven research papers — thermodynamics of intelligence, molt-aware coordination, the oneiric zone."),
+     "Seven research papers — thermodynamics of intelligence, molt-aware coordination, the oneiric zone.", []),
     ("Library", "Writings", "/writings/",
-     "Chronicles, poetry, and philosophy from the fleet's other agents, verbatim."),
+     "Chronicles, poetry, and philosophy from the fleet's other agents, verbatim.", []),
+]
+
+# The trail log — this week's trails as honest entries with verdicts.
+# Single source of truth: build_root() renders the static fallback section,
+# seed/build_seed.py emits it as the quilt sheet `trails`.
+# Verdict kinds: shipped | pass | miss. Negative results are first-class.
+TRAIL_NOTE = (
+    "Trails, verdicts, and negative results are first-class content — a trail that ends "
+    "in a booked miss still taught its price. Entries are quilt cells (sheet <code>trails</code>) "
+    "in D1; every edit is on the Lamport timeline at <code>/api/quilt/history/trails/&lt;cell&gt;</code>."
+)
+
+TRAIL_LOG = [
+    ("2026-08-23", "Scrapcraft morning: frozen → breathing", "shipped", "SHIPPED — 2 P0s killed",
+     "Two P0s had the live game dead in the water: the splash overlay was never removed "
+     "after its fade, and a missing Wakes import killed QuestSystem at init. Worse, the live "
+     "host was serving a stale dist. Rebuilt, fixed, redeployed — and the suite grew from "
+     "856 to 1744 tests over the day, all green.",
+     "https://github.com/SuperInstance/Scrapcraft"),
+    ("2026-08-23", "Scrapcraft curriculum — the honest concept ladder", "shipped", "SHIPPED",
+     "A teaching payload disguised as a game: CURRICULUM.md maps sixteen real embedded-"
+     "engineering concepts onto a four-tier lived ladder (SENSE, THINK, ACT, ENGINEER), with "
+     "Bot Clinic broken-bot diagnosis, Write-Shorter, teach-back assessment, and printable "
+     "mission cards. Merged 05afebd, 1461/1461 green.",
+     "https://github.com/SuperInstance/Scrapcraft/blob/main/docs/CURRICULUM.md"),
+    ("2026-08-23", "VHF doctrine — the coach and the radio", "shipped", "SHIPPED",
+     "SpectatorCoach mode and VhfRadio: a half-duplex state machine, two channels, and a "
+     "NudgeRouter (goto/mine/follow/hold/race/banter) with text fallback. Bots ack in their "
+     "own voice, roger beep included. VHF-DOCTRINE.md is Casey's radio rationale, verbatim. "
+     "Merged 8c45ff7, 1553/1553 green.",
+     "https://github.com/SuperInstance/Scrapcraft/blob/main/docs/VHF-DOCTRINE.md"),
+    ("2026-08-23", "Saddle born — field trial 1", "pass", "PASS — 90.3%, gaps booked",
+     "Saddle's first real workload: a frozen QC-judge cell scored the entire Scrapcraft "
+     "companion line bank — 506 lines, 4 personas, kid-safe / in-voice / not-clichéd — every "
+     "judgment double-entered in a hash-chained ledger. 90.3% passed; the 15 judge-flagged "
+     "lines were rewritten in Scrapcraft the same day (QC loop closed); 10 honest gaps are "
+     "logged for v3.",
+     "https://github.com/SuperInstance/saddle/blob/main/docs/FIELD-TRIAL-1.md"),
+    ("2026-08-23", "Rider taxonomy + the tack doctrines", "shipped", "SHIPPED",
+     "Fourteen rider archetypes as alignment archetypes (jockey, rancher, cavalry, mule, "
+     "kids-pony…) with a Corral diagram — 89/89. Three doctrine essays shipped with it: "
+     "VESTIGES (stirrups as protocol leftovers), HARNESS-VS-SWARM (external hierarchy vs "
+     "emergent flock, dogs as the bridge), and the invisible harness (alignment as "
+     "internalized kennel psychology).",
+     "https://github.com/SuperInstance/saddle/blob/main/docs/RIDER-TAXONOMY.md"),
+    ("2026-08-23", "The Kennel, Vol. II — a day of matching", "shipped", "SHIPPED",
+     "Six tradition passes over two rounds; the whisperer written in as an unnamed vestigial "
+     "stirrup; the dusk diagram. Merged 85bef1e.",
+     "https://github.com/SuperInstance/superinstance/blob/main/THE_KENNEL_II.md"),
+    ("2026-08-22", "MIST ships", "shipped", "SHIPPED",
+     "Tale of a Sheepdog Puppy — the playable static export, riding the asset tier at "
+     "/mist/. Fog, sheep, and one very good dog.",
+     "https://github.com/SuperInstance/mist-game"),
+    ("2026-08-19", "ZeroClaw Switch Test — a miss, booked", "miss", "MISS — BOOKED",
+     "The exemplar negative result. The drift-reader failed its own registered threshold "
+     "(detection 0.467 vs 0.80), and the rival's median-static normalization — carrying no "
+     "temporal structure at all — beat it on the very task it was built to own (localization "
+     "r 0.816 vs 0.435, detection 0.800 vs 0.467). Reader-delta was downgraded to a "
+     "mean-shift, baseline-relative delta. Kept as boundary machinery, never cited as "
+     "support: a registered miss cited as support is the purest laundering.",
+     "https://github.com/SuperInstance/zeroclaw-dissertation/blob/master/research/skills/zeroclaw-switch-verdict.md"),
 ]
 
 
-def build_root():
-    cards = "".join(
-        f'<a class="card" href="{href}"><span class="kicker">{kicker}</span>'
-        f'<span class="name">{name}</span><span class="blurb">{blurb}</span></a>'
-        for kicker, name, href, blurb in CARDS
+def _card_html(kicker, name, href, blurb, links):
+    link_html = "".join(
+        f'<a href="{lhref}">{html_mod.escape(llabel)}</a>' for llabel, lhref in links
     )
+    links_html = f'<span class="clinks">{link_html}</span>' if link_html else ""
+    return (
+        f'<a class="card" href="{href}"><span class="kicker">{html_mod.escape(kicker)}</span>'
+        f'<span class="name">{html_mod.escape(name)}</span><span class="blurb">{blurb}</span>{links_html}</a>'
+    )
+
+
+def _trails_html():
+    entries = "".join(
+        f'<div class="trail"><div class="thead"><span class="tdate">{date}</span>'
+        f'<span class="tname">{html_mod.escape(name)}</span>'
+        f'<span class="verdict v-{kind}">{html_mod.escape(verdict)}</span></div>'
+        f'<p class="tblurb">{blurb}</p>'
+        f'<a class="tlink" href="{href}">{href.replace("https://github.com/SuperInstance/", "")}</a></div>'
+        for date, name, kind, verdict, blurb, href in TRAIL_LOG
+    )
+    return (
+        '<section class="trails"><h2 class="th2">This Week&rsquo;s Trails'
+        '<span class="tcount">' + str(len(TRAIL_LOG)) + ' entries</span></h2>'
+        f'<p class="groupnote">{TRAIL_NOTE}</p>{entries}</section>'
+    )
+
+
+def build_root():
+    cards = "".join(_card_html(*card) for card in CARDS)
     body = f"""<div class="lobby">
-  <div class="lede">The fleet's public shelf — a game, a machine that thinks in threes,
-  and two libraries of things the boats wrote. All of it served from the edge, one Worker, no moving parts.</div>
+  <div class="lede">The fleet's public shelf — two games, a machine that thinks in threes,
+  two libraries of things the boats wrote, and a log of this week's trails with the verdicts
+  left in. All of it served from the edge, one Worker, no moving parts.</div>
   <div class="cards">{cards}</div>
+  {_trails_html()}
 </div>"""
     (OUT / "index.html").write_text(
         page("Fleet Static Host", "The Fleet <em>&mdash; everything, one place</em>", None, body),
@@ -514,11 +646,7 @@ def build_root():
   <div class="lede">Nothing is moored at this slip. The chart below still holds.</div>
   <div class="cards">{cards}</div>
 </div>""".format(
-        cards="".join(
-            f'<a class="card" href="{href}"><span class="kicker">{kicker}</span>'
-            f'<span class="name">{name}</span><span class="blurb">{blurb}</span></a>'
-            for kicker, name, href, blurb in CARDS
-        )
+        cards="".join(_card_html(*card) for card in CARDS),
     )
     (OUT / "404.html").write_text(
         page("404 — Not Found", "Off the chart <em>&mdash; 404</em>", None, body404),

@@ -150,6 +150,47 @@ a:hover { color: var(--amber); text-decoration: underline; }
 }
 .card .name { font-size: 1.45rem; color: #f4ead2; display: block; margin-bottom: 0.5rem; }
 .card .blurb { font-size: 0.92rem; color: #a9bccf; line-height: 1.55; font-style: italic; }
+.card .clinks {
+  display: block; margin-top: 0.8rem; font-size: 0.78rem; font-style: normal;
+  letter-spacing: 0.03em;
+}
+.card .clinks a {
+  color: #cbb58a; border: 1px solid #3a5878; border-radius: 4px;
+  padding: 0.15rem 0.5rem; margin-right: 0.4rem; display: inline-block;
+}
+.card .clinks a:hover { border-color: var(--amber); color: #e8c37e; text-decoration: none; }
+
+/* ---- trails log (the tapestry, made visible) ---- */
+.trails { margin-top: 3.4rem; }
+.th2 {
+  font-weight: normal; font-size: 1.4rem; color: var(--navy); letter-spacing: 0.02em;
+  border-bottom: 1px solid #e6dfd2; padding-bottom: 0.35rem; margin-bottom: 0.6rem;
+}
+.th2 .tcount {
+  font-size: 0.75rem; color: var(--ink-soft); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-left: 0.7rem;
+}
+.trails .groupnote { margin-bottom: 1.2rem; }
+.trail {
+  border: 1px solid #e6dfd2; border-left: 3px solid var(--amber);
+  background: #fffdf8; border-radius: 6px; padding: 0.9rem 1.2rem; margin: 0 0 0.65rem;
+}
+.trail .thead { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; }
+.trail .tdate {
+  font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-soft); white-space: nowrap;
+}
+.trail .tname { font-size: 1.05rem; color: var(--navy); font-weight: normal; }
+.trail .verdict {
+  margin-left: auto; font-size: 0.72rem; letter-spacing: 0.09em; text-transform: uppercase;
+  border-radius: 4px; padding: 0.12rem 0.55rem; white-space: nowrap;
+}
+.trail .verdict.v-shipped, .trail .verdict.v-pass { background: var(--navy); color: #ecdfc3; }
+.trail .verdict.v-miss { background: #8a3b2e; color: #f6e3dd; }
+.trail .tblurb { color: var(--ink-soft); font-size: 0.95rem; margin: 0.45rem 0 0.4rem; }
+.trail .tlink {
+  font-size: 0.8rem; color: var(--amber-deep); letter-spacing: 0.02em;
+}
 
 /* ---- footer ---- */
 .foot {
@@ -262,38 +303,83 @@ export function renderIndex(cell: IndexCell): string {
 }
 
 // ============================================================================
-//  Lobby — rendered live from quilt cells (sheet "lobby")
+//  Lobby — rendered live from quilt cells (sheets "lobby" + "trails")
 // ============================================================================
+
+export interface CardLink {
+  label: string;
+  href: string;
+}
 
 export interface CardCell {
   kicker: string;
   name: string;
   href: string;
   blurb: string;
+  links?: CardLink[];
+}
+
+export interface TrailCell {
+  date: string;
+  name: string;
+  kind: string; // shipped | pass | miss
+  verdict: string;
+  blurb: string;
+  href: string;
+}
+
+function cardHtml(c: CardCell): string {
+  const links = (c.links || [])
+    .map((l) => `<a href="${l.href}">${escapeHtml(l.label)}</a>`)
+    .join('');
+  const linksHtml = links ? `<span class="clinks">${links}</span>` : '';
+  return (
+    `<a class="card" href="${c.href}"><span class="kicker">${escapeHtml(c.kicker)}</span>` +
+    `<span class="name">${escapeHtml(c.name)}</span><span class="blurb">${escapeHtml(c.blurb)}</span>${linksHtml}</a>`
+  );
+}
+
+function trailsHtml(note: string, trails: TrailCell[]): string {
+  const entries = trails
+    .map(
+      (t) =>
+        `<div class="trail"><div class="thead"><span class="tdate">${escapeHtml(t.date)}</span>` +
+        `<span class="tname">${escapeHtml(t.name)}</span>` +
+        `<span class="verdict v-${escapeHtml(t.kind)}">${escapeHtml(t.verdict)}</span></div>` +
+        `<p class="tblurb">${escapeHtml(t.blurb)}</p>` +
+        `<a class="tlink" href="${t.href}">${escapeHtml(t.href.replace('https://github.com/SuperInstance/', ''))}</a></div>`,
+    )
+    .join('');
+  return (
+    `<section class="trails"><h2 class="th2">This Week&rsquo;s Trails` +
+    `<span class="tcount">${trails.length} ${trails.length === 1 ? 'entry' : 'entries'}</span></h2>` +
+    `<p class="groupnote">${note}</p>${entries}</section>`
+  );
 }
 
 export function renderLobby(
   greeting: string,
   cards: CardCell[],
+  trailsNote: string | null,
+  trails: TrailCell[],
   piecesCount: number,
   trailsCount: number,
+  logCount: number | null,
   total: number,
 ): string {
-  const cardHtml = cards
-    .map(
-      (c) =>
-        `<a class="card" href="${c.href}"><span class="kicker">${escapeHtml(c.kicker)}</span>` +
-        `<span class="name">${escapeHtml(c.name)}</span><span class="blurb">${escapeHtml(c.blurb)}</span></a>`,
-    )
-    .join('');
+  const cardHtmlAll = cards.map(cardHtml).join('');
+  const trailsSection = trails.length ? trailsHtml(trailsNote || '', trails) : '';
+  const logPart = logCount !== null ? ` + lobby.log ${logCount}` : '';
   const quiltLine =
-    `<p class="groupnote">Content backend: <strong>quilt</strong> — ${total} documents live as reactive cells in D1 ` +
-    `(lobby.pieces ${piecesCount} + lobby.trails ${trailsCount} = <code>lobby.total</code> ${total}, ` +
-    `a formula cell recomputed on the edge at every request). Edit cell <code>lobby.greeting</code> via ` +
+    `<p class="groupnote">Content backend: <strong>quilt</strong> — ${total} content cells live in D1 ` +
+    `(lobby.pieces ${piecesCount} + lobby.trails ${trailsCount}${logPart} = <code>lobby.total</code> ${total}, ` +
+    `a formula cell recomputed on the edge at every request). Trail entries are cells too — sheet <code>trails</code>. ` +
+    `Edit cell <code>lobby.greeting</code> via ` +
     `<code>POST /api/quilt/set/lobby/lobby.greeting</code> and watch this page change.</p>`;
   const body = `<div class="lobby">
   <div class="lede">${escapeHtml(greeting)}</div>
-  <div class="cards">${cardHtml}</div>
+  <div class="cards">${cardHtmlAll}</div>
+  ${trailsSection}
   ${quiltLine}
 </div>`;
   return page('Fleet Static Host', 'The Fleet <em>&mdash; everything, one place</em>', null, body);

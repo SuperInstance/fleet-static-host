@@ -137,6 +137,46 @@ a:hover { color: var(--amber); text-decoration: underline; }
 }
 .card .name { font-size: 1.45rem; color: #f4ead2; display: block; margin-bottom: 0.5rem; }
 .card .blurb { font-size: 0.92rem; color: #a9bccf; line-height: 1.55; font-style: italic; }
+.card .clinks {
+  display: block; margin-top: 0.8rem; font-size: 0.78rem; font-style: normal;
+  letter-spacing: 0.03em;
+}
+.card .clinks a {
+  color: #cbb58a; border: 1px solid #3a5878; border-radius: 4px;
+  padding: 0.15rem 0.5rem; margin-right: 0.4rem; display: inline-block;
+}
+.card .clinks a:hover { border-color: var(--amber); color: #e8c37e; text-decoration: none; }
+
+/* ---- trails log (the tapestry, made visible) ---- */
+.trails { margin-top: 3.4rem; }
+.th2 {
+  font-weight: normal; font-size: 1.4rem; color: var(--navy); letter-spacing: 0.02em;
+  border-bottom: 1px solid #e6dfd2; padding-bottom: 0.35rem; margin-bottom: 0.6rem;
+}
+.th2 .tcount {
+  font-size: 0.75rem; color: var(--ink-soft); letter-spacing: 0.1em;
+  text-transform: uppercase; margin-left: 0.7rem;
+}
+.trail {
+  border: 1px solid #e6dfd2; border-left: 3px solid var(--amber);
+  background: #fffdf8; border-radius: 6px; padding: 0.9rem 1.2rem; margin: 0 0 0.65rem;
+}
+.trail .thead { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; }
+.trail .tdate {
+  font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-soft); white-space: nowrap;
+}
+.trail .tname { font-size: 1.05rem; color: var(--navy); font-weight: normal; }
+.trail .verdict {
+  margin-left: auto; font-size: 0.72rem; letter-spacing: 0.09em; text-transform: uppercase;
+  border-radius: 4px; padding: 0.12rem 0.55rem; white-space: nowrap;
+}
+.trail .verdict.v-shipped, .trail .verdict.v-pass { background: var(--navy); color: #ecdfc3; }
+.trail .verdict.v-miss { background: #8a3b2e; color: #f6e3dd; }
+.trail .tblurb { color: var(--ink-soft); font-size: 0.95rem; margin: 0.45rem 0 0.4rem; }
+.trail .tlink {
+  font-size: 0.8rem; color: var(--amber-deep); letter-spacing: 0.02em;
+}
 
 /* ---- footer ---- */
 .foot {
