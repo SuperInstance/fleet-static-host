@@ -6,7 +6,7 @@ set -euo pipefail
 BASE="${BASE:-https://fleet-static-host.casey-digennaro.workers.dev}"
 KEY="${QUILT_SEED_KEY:?set QUILT_SEED_KEY (must match `wrangler secret put QUILT_SEED_KEY`)}"
 DIR="$(cd "$(dirname "$0")" && pwd)/sheets"
-for sheet in papers writings lobby; do
+for sheet in papers writings lobby trails; do
   echo "→ pushing sheet: $sheet → $BASE"
   curl -sS -X POST "$BASE/api/quilt/sheet?id=$sheet" \
     -H "X-Quilt-Key: $KEY" \

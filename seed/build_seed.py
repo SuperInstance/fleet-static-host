@@ -11,6 +11,8 @@ Sheets:
   writings — writing.<slug> doc cells + writings.index
   lobby    — greeting, cards (one cell per trail), counts, and the
              lobby.total formula cell (recomputed on the edge per request).
+  trails   — this week's trail entries with verdicts (negative results
+             first-class) + trails.index ordering + trails.note doctrine.
 """
 import html as html_mod
 import json
@@ -21,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import build_site as bs  # noqa: E402  (the original pipeline — single source of truth)
+import re
 
 OUT = ROOT / "seed" / "sheets"
 
@@ -162,22 +165,28 @@ def writing_sheets():
 
 def lobby_sheet(n_papers, n_writings):
     cards = []
-    for kicker, name, href, blurb in bs.CARDS:
+    for kicker, name, href, blurb, links in bs.CARDS:
         key = name.lower().replace(" ", "-")
+        value = {"kicker": kicker, "name": name, "href": href, "blurb": blurb}
+        if links:
+            value["links"] = [{"label": label, "href": lhref} for label, lhref in links]
         cards.append({
             "id": f"lobby.card.{key}",
             "kind": "value",
-            "value": {"kicker": kicker, "name": name, "href": href, "blurb": blurb},
+            "value": value,
             "config": {"description": f"Lobby card: {name}"},
         })
-    pieces, trails = n_papers + n_writings, len(bs.CARDS)
+    pieces = n_papers + n_writings
+    trails = len(bs.CARDS)
+    log_entries = len(bs.TRAIL_LOG)
     cells = [
         {
             "id": "lobby.greeting",
             "kind": "value",
-            "value": ("The fleet's public shelf — a game, a machine that thinks in threes, "
-                      "and two libraries of things the boats wrote. All of it served from the edge, "
-                      "one Worker, no moving parts."),
+            "value": ("The fleet's public shelf — two games, a machine that thinks in threes, "
+                      "two libraries of things the boats wrote, and a log of this week's trails "
+                      "with the verdicts left in. All of it served from the edge, one Worker, "
+                      "no moving parts."),
             "config": {"description": "Lobby lede — live-editable via POST /api/quilt/set/lobby/lobby.greeting"},
         },
         {
@@ -191,13 +200,53 @@ def lobby_sheet(n_papers, n_writings):
          "config": {"description": "Documents in quilt (papers + writings)"}},
         {"id": "lobby.trails", "kind": "value", "value": trails,
          "config": {"description": "Trails on the shelf (cards)"}},
-        {"id": "lobby.total", "kind": "formula", "value": pieces + trails,
-         "config": {"expr": "lobby.pieces + lobby.trails",
-                    "description": "pieces + trails, recomputed on the edge at every request"}},
+        {"id": "lobby.log", "kind": "value", "value": log_entries,
+         "config": {"description": "Entries in the trails log (sheet `trails`)"}},
+        {"id": "lobby.total", "kind": "formula", "value": pieces + trails + log_entries,
+         "config": {"expr": "lobby.pieces + lobby.trails + lobby.log",
+                    "description": "pieces + trails + log, recomputed on the edge at every request"}},
     ]
-    edges = [["lobby.pieces", "lobby.total"], ["lobby.trails", "lobby.total"]]
-    print(f"  lobby: {len(cells)} cells (pieces={pieces}, trails={trails}, total={pieces + trails})")
+    edges = [["lobby.pieces", "lobby.total"], ["lobby.trails", "lobby.total"],
+             ["lobby.log", "lobby.total"]]
+    print(f"  lobby: {len(cells)} cells (pieces={pieces}, trails={trails}, log={log_entries}, "
+          f"total={pieces + trails + log_entries})")
     return {"id": "lobby", "title": "Fleet Lobby", "cells": cells, "edges": edges}
+
+
+def trails_sheet():
+    """This week's trails as honest entries with verdicts — negative results first-class."""
+    cells = [{
+        "id": "trails.note",
+        "kind": "value",
+        "value": bs.TRAIL_NOTE,
+        "config": {"description": "Doctrine note under the trails heading"},
+    }]
+    order = []
+    for date, name, kind, verdict, blurb, href in bs.TRAIL_LOG:
+        slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+        cid = f"trail.{slug}"
+        order.append(cid)
+        cells.append({
+            "id": cid,
+            "kind": "value",
+            "value": {
+                "date": date,
+                "name": name,
+                "kind": kind,
+                "verdict": verdict,
+                "blurb": blurb,
+                "href": href,
+            },
+            "config": {"description": f"Trail entry ({verdict}): {name}"},
+        })
+    cells.insert(1, {
+        "id": "trails.index",
+        "kind": "value",
+        "value": order,
+        "config": {"description": "Ordered trail entry cell ids (newest first)"},
+    })
+    print(f"  trails: {len(order)} entries")
+    return {"id": "trails", "title": "Fleet Trails", "cells": cells}
 
 
 if __name__ == "__main__":
@@ -210,7 +259,9 @@ if __name__ == "__main__":
     n_papers = len([c for c in papers["cells"] if c["id"].startswith("paper.")])
     n_writings = len([c for c in writings["cells"] if c["id"].startswith("writing.")])
     lobby = lobby_sheet(n_papers, n_writings)
-    for sheet in (papers, writings, lobby):
+    print("building trails sheet…")
+    trails = trails_sheet()
+    for sheet in (papers, writings, lobby, trails):
         path = OUT / f'{sheet["id"]}.json'
         path.write_text(json.dumps(sheet, ensure_ascii=False), encoding="utf-8")
         kb = path.stat().st_size / 1024

@@ -5,25 +5,30 @@ content rides quilt**. Live at `fleet-static-host.casey-digennaro.workers.dev`.
 
 | Path | What | Backend |
 |------|------|---------|
+| `/scrap/` | **Scrapcraft** — the scrapyard sandbox that teaches embedded engineering | assets tier — a build, not content |
 | `/mist/` | **MIST — Tale of a Sheepdog Puppy** (playable static export) | assets tier — a build, not content |
 | `/ternary/` | **Ternary ROM** interactive visualizer | assets tier — a build, not content |
 | `/papers/` | 7 SuperInstance research papers (KaTeX math) | **quilt cells in D1** |
 | `/writings/` | 24 verbatim pieces from the agent-writings archive | **quilt cells in D1** |
-| `/` | Lobby index | **quilt cells in D1** (live-rendered) |
+| `/` | Lobby index + this week's **trails** (verdicts, misses included) | **quilt cells in D1** (live-rendered) |
 | `/api/quilt/*` | The quilt backend, inspectable over HTTP | D1 |
 
 ## The split, honestly
 
 **Static builds ride assets; content rides quilt.**
 
-- `/mist` and `/ternary` are *build artifacts* — compiled game exports and app
+- `/scrap`, `/mist` and `/ternary` are *build artifacts* — compiled game exports and app
   bundles. They belong on Cloudflare's asset tier: free, cacheable, no Worker
   invocation per hit. They never touch the Worker.
 - `/papers`, `/writings`, and the lobby are *content* — words someone wrote.
   Every document is a **quilt cell** (`paper.<slug>`, `writing.<slug>`) in a
   **quilt sheet** (`papers`, `writings`, `lobby`), persisted in the D1 database
   `quilt-fleet-db` through quilt-cloudflare's `D1Storage`, and read through the
-  vendored quilt engine at request time. A tiny render layer (`src/render.ts`)
+  vendored quilt engine at request time. The **trails log** on the lobby is
+  content too — sheet `trails`, one cell per entry (`trail.<slug>` + `trails.index`
+  ordering + `trails.note` doctrine) — because trails, verdicts, and negative
+  results are first-class content: the tapestry is only visible when failed
+  trails stay on the wall. A tiny render layer (`src/render.ts`)
   keeps the original typography **byte-for-byte** — all 31 documents render
   identically to the previous static builds (verified by md5 on every URL).
 - The old static `public/papers` + `public/writings` + `index.html` remain
@@ -50,7 +55,7 @@ left out (this Worker has its own).
 - **Formula cells** — quilt's `evalFormula` uses `new Function`, which the
   Workers runtime blocks at request time ("Code generation from strings
   disallowed for this context"; `/api/quilt/health` reports this live). The
-  lobby's `lobby.total` formula (`lobby.pieces + lobby.trails`) is therefore
+  lobby's `lobby.total` formula (`lobby.pieces + lobby.trails + lobby.log`) is therefore
   evaluated by a small safe arithmetic parser in `src/index.ts`
   (`safeEvalArithmetic`) with the same cell-identifier semantics. This is the
   one place quilt's edge story needed a shim — flagged here rather than hidden.
@@ -92,15 +97,16 @@ matching the `QUILT_SEED_KEY` Worker secret.
 src/
   index.ts       Worker: routing (worker-first for content), quilt reads/writes, API, assets fallback
   quilt.ts       vendored quilt-cloudflare engine @ 3c293f6 (verbatim, attributed)
-  render.ts      render layer: original CSS/template port + quilt-rendered lobby
+  render.ts      render layer: original CSS/template port + quilt-rendered lobby + trails log
 migrations/
   0001_quilt_schema.sql   quilt's D1 schema (cells, edges, history, listeners, ai_usage)
 seed/
-  build_seed.py  markdown -> quilt Sheet JSON (reuses build_site.py's pipeline exactly)
+  build_seed.py  markdown -> quilt Sheet JSON (reuses build_site.py's pipeline exactly);
+                 the trails sheet is built from build_site.py's TRAIL_LOG (single source)
   push.sh        POSTs sheets to /api/quilt/sheet (needs QUILT_SEED_KEY)
   sheets/        generated Sheet JSON (committed so re-seeding needs no Python)
-public/          assets: mist/, ternary/ (builds) + papers/, writings/, index.html, 404.html (cold fallback)
-build_site.py    original static builder — still the markdown pipeline + fallback generator
+public/          assets: scrap/, mist/, ternary/ (builds) + papers/, writings/, index.html, 404.html (cold fallback)
+build_site.py    original static builder — markdown pipeline + fallback generator + TRAIL_LOG
 wrangler.jsonc   main + D1 binding (quilt-fleet-db) + assets with run_worker_first
 ```
 
@@ -125,7 +131,9 @@ Content changes propagate within `max-age=300` on doc pages; the lobby is
 ## Sources
 
 - Game: `mist-game/out` (static export; a fix lane rebuilds it with basePath /mist)
+- Scrapcraft: `Scrapcraft/dist` (static export; deploy is copy into `public/scrap/` + `npx wrangler deploy`)
 - Ternary: `ternary-rom/web`
 - Papers: `si-papers-new/papers`
 - Writings: `agent-writings-archive/ai-writings-additions/extracted`
+- Trails log entries: `build_site.py` `TRAIL_LOG` — each entry links its repo/story
 - Engine: `quilt-cloudflare` (vendored; upstream untouched)
