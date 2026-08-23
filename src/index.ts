@@ -19,7 +19,11 @@
 // =============================================================================
 
 import { D1Storage, QuiltEngine, type Sheet } from './quilt';
-import { page, renderDoc, renderIndex, renderLobby, type DocCell, type IndexCell, type CardCell, type TrailCell } from './render';
+import { page, renderDoc, renderIndex, renderLobby, type DocCell, type IndexCell, type CardCell, type TrailCell, type YardSignal } from './render';
+import {
+  USCP_SHEET, USCP_CELL_PREFIX, USCP_MAX_BODY_BYTES,
+  RateLimiter, validateEnvelope, mergeTelemetry, type UscpPacket, type TelemetryCell,
+} from './uscp';
 
 export interface Env {
   DB: D1Database;
@@ -108,6 +112,8 @@ export default {
             'GET  /api/quilt/history/<sheet>/<cell>': 'cell change history (Lamport timeline)',
             'POST /api/quilt/set/<sheet>/<cell>': 'set a cell value — public for lobby.*, key-protected otherwise (body {"value": ...})',
             'POST /api/quilt/sheet?id=<sheet>': 'load a sheet (seed) — requires X-Quilt-Key',
+            'POST /api/uscp': 'USCP telemetry sink — validated + rate-limited, writes sheet `telemetry` (latest-wins per signal_type)',
+            'GET  /api/uscp': 'telemetry summary (the LIVE YARD panel feed)',
           },
           demo: 'POST /api/quilt/set/lobby/lobby.greeting {"value":"..."} then reload / — the lobby is live.',
         });
@@ -206,6 +212,16 @@ export default {
         const engine = new QuiltEngine({ storage, sheetId, author: 'seed' });
         await engine.load(sheet);
         return json({ ok: true, sheetId, cells: sheet.cells.length, edges: (sheet.edges || []).length });
+      }
+
+      // ------------------------------------------------------------------
+      // USCP telemetry sink — games phone home here (opt-in on their side)
+      // ------------------------------------------------------------------
+      if (path === '/api/uscp' && req.method === 'POST') {
+        return await handleUscpPost(req, env);
+      }
+      if (path === '/api/uscp' && req.method === 'GET') {
+        return await handleUscpGet(env);
       }
 
       // ------------------------------------------------------------------
@@ -311,6 +327,7 @@ async function handleLobby(req: Request, env: Env): Promise<Response> {
     const pieces = value('lobby.pieces') as number | undefined;
     const trails = value('lobby.trails') as number | undefined;
     const log = value('lobby.log') as number | undefined;
+    const yard = await loadYardSignals(env);
     const formulaCell = cells.find((c) => c.id === 'lobby.total');
 
     // Formula cell: quilt semantics (deps -> expr) but evaluated with the safe
@@ -358,12 +375,82 @@ async function handleLobby(req: Request, env: Env): Promise<Response> {
       console.error(`trails sheet unavailable, skipping section: ${e?.message}`);
     }
 
-    const body = renderLobby(greeting, cards, trailsNote, trailCells, pieces ?? 0, trails ?? 0, typeof log === 'number' ? log : null, totalSafe);
+    const body = renderLobby(greeting, cards, trailsNote, trailCells, pieces ?? 0, trails ?? 0, typeof log === 'number' ? log : null, totalSafe, yard);
     return html(body, 'no-cache');
   } catch (e: any) {
     console.error(`lobby fell back to static: ${e?.message}`);
     return env.ASSETS.fetch(req);
   }
+}
+
+// ============================================================================
+//  USCP telemetry — sink + live summary
+// ============================================================================
+
+const uscpLimiter = new RateLimiter(10, 0.5);
+
+async function handleUscpPost(req: Request, env: Env): Promise<Response> {
+  const ip = req.headers.get('CF-Connecting-IP') || 'local';
+  if (!uscpLimiter.take(ip)) {
+    return json({ error: 'rate limited — the yard is chatty; slow down' }, 429);
+  }
+  const raw = await req.text().catch(() => null);
+  if (raw === null) return json({ error: 'unreadable body' }, 400);
+  if (raw.length > USCP_MAX_BODY_BYTES) return json({ error: 'body too large' }, 413);
+  const parsed = await (async () => { try { return JSON.parse(raw); } catch { return null; } })();
+  const v = validateEnvelope(parsed);
+  if (!v.ok) return json({ error: v.error }, v.status ?? 400);
+
+  // Group by signal_type, then write one latest-wins cell per key.
+  const bySignal = new Map<string, UscpPacket[]>();
+  for (const p of v.packets!) {
+    const list = bySignal.get(p.signal_type) || [];
+    list.push(p);
+    bySignal.set(p.signal_type, list);
+  }
+  const storage = new D1Storage(env.DB, 'uscp');
+  const written: Record<string, number> = {};
+  for (const [signal, packets] of bySignal) {
+    const cellId = USCP_CELL_PREFIX + signal;
+    try {
+      // Cells are latest-wins per key: create the row on first sight.
+      await env.DB
+        .prepare(`INSERT OR IGNORE INTO cells (id, sheet_id, kind, value, value_type, t, author, created_at, updated_at)
+                  VALUES (?, ?, 'value', '{}', 'object', 0, 'uscp', strftime('%s','now')*1000, strftime('%s','now')*1000)`)
+        .bind(cellId, USCP_SHEET)
+        .run();
+      const prev = await storage.getValue(USCP_SHEET, cellId);
+      const merged = mergeTelemetry((prev?.value as TelemetryCell) ?? null, packets);
+      await storage.setValue(USCP_SHEET, cellId, merged, merged.t, 'uscp');
+      written[signal] = packets.length;
+    } catch (e: any) {
+      // One bad key never fails the whole batch.
+      console.error(`uscp write failed for ${signal}: ${e?.message}`);
+    }
+  }
+  return json({ ok: true, source: v.source!, accepted: v.packets!.length, written });
+}
+
+async function loadYardSignals(env: Env): Promise<YardSignal[]> {
+  try {
+    const storage = new D1Storage(env.DB, AUTHOR);
+    const { cells } = await storage.load(USCP_SHEET);
+    return cells
+      .filter((c) => c.id.startsWith(USCP_CELL_PREFIX))
+      .map((c) => {
+        const v = c.value as TelemetryCell;
+        return { signal: c.id.slice(USCP_CELL_PREFIX.length), count: v?.count ?? 0, last: v?.last ?? {}, t: v?.t ?? 0 };
+      })
+      .filter((y) => y.count > 0)
+      .sort((a, b) => b.count - a.count);
+  } catch {
+    return []; // telemetry sheet absent: the yard is simply quiet — never break the lobby
+  }
+}
+
+async function handleUscpGet(env: Env): Promise<Response> {
+  const yard = await loadYardSignals(env);
+  return json({ ok: true, yard });
 }
 
 async function handleIndex(req: Request, env: Env, sheet: 'papers' | 'writings'): Promise<Response> {
