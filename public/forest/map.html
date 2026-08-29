@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forest Map — the canon as a graph</title>
+<style>
+  :root{--bg:#0b0e12;--fg:#c9d4e0;--dim:#5c6a7a;--acc:#4fb3a9;--warn:#d9a441;--line:#1c242e;--card:#141b24}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);
+    font:14px/1.5 ui-monospace,Menlo,Consolas,monospace}
+  #cv{position:fixed;inset:0;display:block;touch-action:none;cursor:grab}
+  #cv.dragging{cursor:grabbing}
+  header{position:fixed;top:0;left:0;right:0;padding:.7rem 1rem;pointer-events:none;
+    background:linear-gradient(rgba(11,14,18,.92),rgba(11,14,18,0));z-index:2}
+  h1{margin:0;font-size:1rem;letter-spacing:.08em}
+  h1 span{color:var(--acc)}
+  #meta{color:var(--dim);font-size:.72rem;margin-top:.2rem}
+  #meta .ok{color:var(--acc)}
+  #meta .err{color:#c95d5d}
+  #legend{position:fixed;left:1rem;bottom:1rem;z-index:2;pointer-events:none;font-size:.68rem;color:var(--dim)}
+  #legend .sw{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;margin:0 .3rem 0 .8rem;vertical-align:-.05rem}
+  #legend .sw:first-child{margin-left:0}
+  #legend .edge{width:1.1rem;height:2px;border-radius:0;vertical-align:.15rem}
+  #tip{position:fixed;z-index:3;pointer-events:none;display:none;max-width:20rem;
+    background:var(--card);border:1px solid #243040;border-radius:.35rem;padding:.35rem .6rem;
+    font-size:.72rem;color:var(--fg);word-break:break-all}
+  #panel{position:fixed;top:0;right:0;bottom:0;width:min(26rem,92vw);z-index:4;
+    background:var(--card);border-left:1px solid var(--line);padding:1rem 1.2rem;overflow-y:auto;
+    transform:translateX(105%);transition:transform .18s ease-out}
+  #panel.open{transform:none}
+  #panel .close{position:absolute;top:.6rem;right:.8rem;background:none;border:1px solid #243040;border-radius:.3rem;
+    color:var(--dim);font:inherit;cursor:pointer;padding:.1rem .5rem}
+  #panel .close:hover{color:var(--fg);border-color:var(--acc)}
+  #panel .path{color:var(--acc);font-size:.8rem;word-break:break-all;margin:1.6rem 0 .2rem}
+  #panel .chunk{color:var(--dim);font-size:.68rem;margin-bottom:.8rem}
+  #panel .text{font-size:.82rem;white-space:pre-wrap;overflow-wrap:break-word}
+  #panel .loading{color:var(--dim)}
+  a{color:var(--acc);text-decoration:none}
+  a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<header>
+  <h1>FOREST MAP <span>·</span> THE CANON AS A GRAPH</h1>
+  <div id="meta">loading the forest…</div>
+</header>
+<div id="legend"></div>
+<div id="tip"></div>
+<aside id="panel">
+  <button class="close" id="close" title="close">✕</button>
+  <div class="path" id="ppath"></div>
+  <div class="chunk" id="pchunk"></div>
+  <div class="text" id="ptext"></div>
+</aside>
+<script>
+(function(){
+'use strict';
+const $cv=document.getElementById('cv'),$meta=document.getElementById('meta'),
+      $legend=document.getElementById('legend'),$tip=document.getElementById('tip'),
+      $panel=document.getElementById('panel'),$ppath=document.getElementById('ppath'),
+      $pchunk=document.getElementById('pchunk'),$ptext=document.getElementById('ptext');
+const ctx=$cv.getContext('2d');
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// ---- palette: one hue per top-level directory of the corpus path ----
+const PALETTE=['#4fb3a9','#8fa4c9','#d9a441','#c98fb3','#7fc97f','#d97f5d','#9d8fd9','#c9c25d','#5db8d9','#d95d7a'];
+function topDir(title){const i=title.indexOf('/');return i<0?'(root)':title.slice(0,i);}
+function dirColor(dir,palette){
+  let h=0;for(let i=0;i<dir.length;i++)h=(h*31+dir.charCodeAt(i))>>>0;
+  return PALETTE[h%PALETTE.length];
+}
+
+// ---- load the graph ----
+let N=0,E=0;
+let ids=[],titles=[],colors=[];
+let px,py,vx,vy,deg;                    // Float32Array sim state
+let eSrc,eDst,eW,eRef;                  // Int32Array / Float32Array / Uint8Array
+let idxOf=new Map();
+let alpha=1;                            // sim temperature; 0 = frozen
+let hover=-1,selected=-1;
+
+async function load(){
+  const r=await fetch('/api/forest/graph');
+  const j=await r.json();
+  if(!j.ok)throw new Error(j.error||'graph fetch failed');
+  const keep=new Set();
+  const rawEdges=j.edges.filter(e=>e.src!==e.dst);
+  rawEdges.forEach(e=>{keep.add(e.src);keep.add(e.dst);});
+  // nodes that survive the edge cap, plus any isolated ones (they drift to the rim)
+  ids=j.nodes.map(n=>n.id);
+  titles=j.nodes.map(n=>n.title);
+  N=ids.length;
+  idxOf=new Map(ids.map((id,i)=>[id,i]));
+  const dirs=titles.map(topDir);
+  colors=dirs.map(d=>dirColor(d));
+  px=new Float32Array(N);py=new Float32Array(N);
+  vx=new Float32Array(N);vy=new Float32Array(N);
+  deg=new Float32Array(N);
+  for(let i=0;i<N;i++){                       // deterministic-ish scatter
+    const a=i*2.399963,r=40+6*Math.sqrt(i);
+    px[i]=Math.cos(a)*r;py[i]=Math.sin(a)*r;
+  }
+  const edges=rawEdges.filter(e=>idxOf.has(e.src)&&idxOf.has(e.dst));
+  E=edges.length;
+  eSrc=new Int32Array(E);eDst=new Int32Array(E);
+  eW=new Float32Array(E);eRef=new Uint8Array(E);
+  edges.forEach((e,k)=>{
+    eSrc[k]=idxOf.get(e.src);eDst[k]=idxOf.get(e.dst);
+    eW[k]=Math.max(.05,Math.min(1,e.weight||0));
+    eRef[k]=e.kind==='ref'?1:0;
+    deg[eSrc[k]]++;deg[eDst[k]]++;
+  });
+  const dirNames=[...new Set(dirs)].sort();
+  $legend.innerHTML=dirNames.map(d=>'<span class="sw" style="background:'+dirColor(d)+'"></span>'+esc(d)).join('')+
+    '<br><span class="sw edge" style="background:#8a97a8"></span>ref (author link)'+
+    '<span class="sw edge" style="background:#4f7fb3"></span>near (cosine&gt;0.6)';
+  $meta.innerHTML='<span class="ok">'+N+' nodes · '+E+' edges</span> · drag to pan · wheel/pinch to zoom · tap a node to read it';
+  alpha=1;requestAnimationFrame(tick);
+}
+
+// ---- physics: naive O(n²) repulsion + springs + gravity, cooled by alpha ----
+const REP=2600,SPRING=.012,REST=42,GRAV=.015,DAMP=.86;
+function step(){
+  const a2=alpha*alpha;
+  for(let i=0;i<N;i++){
+    const xi=px[i],yi=py[i];
+    let fx=-GRAV*xi,fy=-GRAV*yi;
+    for(let j=0;j<N;j++){
+      if(j===i)continue;
+      let dx=xi-px[j],dy=yi-py[j];
+      let d2=dx*dx+dy*dy;
+      if(d2<1){dx=Math.random()-.5;dy=Math.random()-.5;d2=1;}
+      if(d2>160000)continue;                  // locality cutoff: skip far pairs
+      const f=REP/d2*a2;
+      fx+=dx*f;fy+=dy*f;
+    }
+    vx[i]=(vx[i]+fx)*DAMP;vy[i]=(vy[i]+fy)*DAMP;
+  }
+  for(let k=0;k<E;k++){
+    const s=eSrc[k],t=eDst[k];
+    let dx=px[t]-px[s],dy=py[t]-py[s];
+    const d=Math.sqrt(dx*dx+dy*dy)||.01;
+    const f=SPRING*(d-REST*(2-eW[k]))*eW[k]*alpha/d;
+    dx*=f;dy*=f;
+    vx[s]+=dx;vy[s]+=dy;vx[t]-=dx;vy[t]-=dy;
+  }
+  let heat=0;
+  for(let i=0;i<N;i++){
+    if(i===selected&&dragging)continue;
+    px[i]+=vx[i];py[i]+=vy[i];
+    heat+=Math.abs(vx[i])+Math.abs(vy[i]);
+  }
+  if(heat/N<0.02)alpha*=.985;                 // cool once the layout settles
+  if(alpha<.02)alpha=0;
+}
+
+// ---- camera ----
+let cam={x:0,y:0,z:1},dpr=1;
+function resize(){
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  $cv.width=innerWidth*dpr;$cv.height=innerHeight*dpr;
+  $cv.style.width=innerWidth+'px';$cv.style.height=innerHeight+'px';
+}
+window.addEventListener('resize',resize);resize();
+function toScreen(x,y){return[(x-cam.x)*cam.z+innerWidth/2,(y-cam.y)*cam.z+innerHeight/2];}
+function toWorld(sx,sy){return[(sx-innerWidth/2)/cam.z+cam.x,(sy-innerHeight/2)/cam.z+cam.y];}
+
+// ---- render ----
+function draw(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#0b0e12';ctx.fillRect(0,0,innerWidth,innerHeight);
+  ctx.lineWidth=1;
+  for(let k=0;k<E;k++){
+    const s=eSrc[k],t=eDst[k];
+    const[x1,y1]=toScreen(px[s],py[s]),[x2,y2]=toScreen(px[t],py[t]);
+    if((x1<-60&&x2<-60)||(y1<-60&&y2<-60)||(x1>innerWidth+60&&x2>innerWidth+60)||(y1>innerHeight+60&&y2>innerHeight+60))continue;
+    ctx.strokeStyle=eRef[k]?'rgba(138,151,168,.20)':'rgba(79,127,179,.13)';
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  }
+  for(let i=0;i<N;i++){
+    const[x,y]=toScreen(px[i],py[i]);
+    if(x<-20||y<-20||x>innerWidth+20||y>innerHeight+20)continue;
+    const r=Math.min(7,(2.2+Math.sqrt(deg[i])*.9))*Math.sqrt(cam.z);
+    ctx.fillStyle=colors[i];
+    ctx.globalAlpha=(i===hover||i===selected)?1:.85;
+    ctx.beginPath();ctx.arc(x,y,i===hover||i===selected?r+1.5:r,0,6.2832);ctx.fill();
+    if(i===selected){ctx.strokeStyle='#e8eef4';ctx.globalAlpha=1;ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(x,y,r+4,0,6.2832);ctx.stroke();}
+  }
+  ctx.globalAlpha=1;
+}
+
+let last=0;
+function tick(ts){
+  if(alpha>0){const steps=Math.min(3,1+((ts-last)/16|0));for(let s=0;s<steps;s++)step();}
+  last=ts;draw();
+  requestAnimationFrame(tick);                // keep drawing (hover/pan), sim may be frozen
+}
+
+// ---- picking ----
+function pick(sx,sy){
+  const[wx,wy]=toWorld(sx,sy);
+  let best=-1,bd=1e9;
+  const rad2=Math.pow(12/cam.z,2);
+  for(let i=0;i<N;i++){
+    const dx=px[i]-wx,dy=py[i]-wy,d2=dx*dx+dy*dy;
+    if(d2<rad2&&d2<bd){bd=d2;best=i;}
+  }
+  return best;
+}
+
+// ---- side panel ----
+function openPanel(i){
+  selected=i;
+  $panel.classList.add('open');
+  $ppath.textContent=titles[i];
+  $pchunk.textContent='node '+ids[i];
+  $ptext.innerHTML='<span class="loading">reading the chunk…</span>';
+  fetch('/api/forest/node?id='+encodeURIComponent(ids[i]))
+    .then(r=>r.json())
+    .then(j=>{
+      if(!j.ok)throw new Error(j.error||'node fetch failed');
+      $ppath.textContent=j.node.path;
+      $pchunk.textContent='chunk '+j.node.chunk;
+      $ptext.textContent=j.node.text;
+    })
+    .catch(e=>{$ptext.innerHTML='<span class="loading">'+esc(e.message)+'</span>';});
+}
+document.getElementById('close').addEventListener('click',()=>{
+  $panel.classList.remove('open');selected=-1;
+});
+
+// ---- input: pan / zoom / drag-node / tap (mouse + touch, unified) ----
+const ptrs=new Map();let dragging=false,panning=false,moved=0,pinch0=0,camz0=1;
+$cv.addEventListener('pointerdown',e=>{
+  $cv.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  moved=0;
+  if(ptrs.size===2){
+    const[a,b]=[...ptrs.values()];
+    pinch0=Math.hypot(a.x-b.x,a.y-b.y);camz0=cam.z;panning=false;dragging=false;
+    return;
+  }
+  const i=pick(e.clientX,e.clientY);
+  if(i>=0){selected=i;dragging=true;vx[i]=vy[i]=0;if(alpha<.3)alpha=.3;}
+  else{panning=true;$cv.classList.add('dragging');}
+});
+$cv.addEventListener('pointermove',e=>{
+  const p=ptrs.get(e.pointerId);
+  if(!p){                                     // plain hover
+    const i=pick(e.clientX,e.clientY);
+    if(i!==hover){hover=i;
+      if(i>=0){$tip.style.display='block';$tip.textContent=titles[i];}
+      else $tip.style.display='none';
+    }
+    if(hover>=0){$tip.style.left=(e.clientX+14)+'px';$tip.style.top=(e.clientY+14)+'px';}
+    return;
+  }
+  const dx=e.clientX-p.x,dy=e.clientY-p.y;
+  p.x=e.clientX;p.y=e.clientY;
+  moved+=Math.abs(dx)+Math.abs(dy);
+  if(ptrs.size===2){
+    const[a,b]=[...ptrs.values()];
+    const d=Math.hypot(a.x-b.x,a.y-b.y);
+    if(pinch0>0)cam.z=Math.max(.15,Math.min(8,camz0*d/pinch0));
+    return;
+  }
+  if(dragging&&selected>=0){
+    const[wx,wy]=toWorld(e.clientX,e.clientY);
+    px[selected]=wx;py[selected]=wy;vx[selected]=vy[selected]=0;
+  }else if(panning){cam.x-=dx/cam.z;cam.y-=dy/cam.z;}
+});
+function endPtr(e){
+  const wasTap=ptrs.size===1&&moved<8;
+  ptrs.delete(e.pointerId);
+  if(ptrs.size<2)pinch0=0;
+  if(ptrs.size===0){panning=false;$cv.classList.remove('dragging');
+    const wasDragging=dragging;dragging=false;
+    if(wasTap&&!wasDragging){               // tap on empty space: close panel
+      $panel.classList.remove('open');selected=-1;
+    }else if(wasTap&&wasDragging&&selected>=0){openPanel(selected);}
+  }
+}
+$cv.addEventListener('pointerup',endPtr);
+$cv.addEventListener('pointercancel',endPtr);
+$cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const f=Math.exp(-e.deltaY*.0012);
+  const[wx,wy]=toWorld(e.clientX,e.clientY);
+  cam.z=Math.max(.15,Math.min(8,cam.z*f));
+  const[sx,sy]=toScreen(wx,wy);
+  cam.x+=(e.clientX-sx)/cam.z;cam.y+=(e.clientY-sy)/cam.z;
+},{passive:false});
+
+load().catch(e=>{
+  $meta.innerHTML='<span class="err">map failed: '+esc(e.message)+'</span>';
+});
+})();
+</script>
+</body>
+</html>

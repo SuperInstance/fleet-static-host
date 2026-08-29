@@ -231,6 +231,12 @@ export default {
       if (path === '/forest/search' && req.method === 'GET') {
         return await handleForestSearch(url, env);
       }
+      if (path === '/api/forest/graph' && req.method === 'GET') {
+        return await handleForestGraph(env);
+      }
+      if (path === '/api/forest/node' && req.method === 'GET') {
+        return await handleForestNode(url, env);
+      }
       // Embed-only bridge: the offline vectorizer embeds through this binding
       // instead of the REST API — worker bindings don't carry OAuth tokens
       // that rotate out from under long-running scripts.
@@ -632,6 +638,56 @@ async function handleForestSearch(url: URL, env: Env): Promise<Response> {
       hops,
     },
   });
+}
+
+// ============================================================================
+//  Forest graph bulk read — feeds /forest/map (the force-directed overview)
+// ============================================================================
+//  Nodes come back as (id, title) with the title trimmed to the corpus path;
+//  chunk text stays out of the payload — the map fetches it per node on tap
+//  via /api/forest/node. Edges are capped at FOREST_GRAPH_MAX_EDGES, keeping
+//  the strongest (weight-desc) so the sampled graph keeps its backbone.
+
+const FOREST_GRAPH_MAX_EDGES = 2000;
+const FOREST_TITLE_MAX = 96;
+
+async function handleForestGraph(env: Env): Promise<Response> {
+  try {
+    const [nodeRows, edgeRows] = await Promise.all([
+      env.DB.prepare('SELECT id, path FROM forest_nodes').all(),
+      env.DB.prepare('SELECT src, dst, kind, weight FROM forest_edges ORDER BY weight DESC LIMIT ?')
+        .bind(FOREST_GRAPH_MAX_EDGES)
+        .all(),
+    ]);
+    const nodes = (nodeRows.results || []).map((r: any) => ({
+      id: r.id as string,
+      title: (r.path as string).slice(0, FOREST_TITLE_MAX),
+    }));
+    const edges = (edgeRows.results || []).map((r: any) => ({
+      src: r.src as string,
+      dst: r.dst as string,
+      kind: r.kind as string,
+      weight: r.weight as number,
+    }));
+    return json({ ok: true, count: { nodes: nodes.length, edges: edges.length }, nodes, edges });
+  } catch (e: any) {
+    return json({ ok: false, error: `graph read failed: ${e?.message}` }, 500);
+  }
+}
+
+async function handleForestNode(url: URL, env: Env): Promise<Response> {
+  const id = (url.searchParams.get('id') || '').slice(0, 128);
+  if (!id) return json({ ok: false, error: 'add ?id=…' }, 400);
+  try {
+    const row = await env.DB
+      .prepare('SELECT id, path, chunk, text FROM forest_nodes WHERE id = ?')
+      .bind(id)
+      .first();
+    if (!row) return json({ ok: false, error: 'node not found' }, 404);
+    return json({ ok: true, node: row });
+  } catch (e: any) {
+    return json({ ok: false, error: `node read failed: ${e?.message}` }, 500);
+  }
 }
 
 // ============================================================================
