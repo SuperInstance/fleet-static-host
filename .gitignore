@@ -3,3 +3,5 @@ node_modules/
 .dev.vars
 .seedkey
 __pycache__/
+tools/forest-nodes.sql
+tools/forest-edges.sql

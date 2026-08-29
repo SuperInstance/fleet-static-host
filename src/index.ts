@@ -223,6 +223,14 @@ export default {
       if (path === '/canon/search' && req.method === 'GET') {
         return await handleCanonSearch(url, env);
       }
+
+      // ------------------------------------------------------------------
+      // Forest — topology-augmented recall over the same canon
+      // (graph traversal over forest_edges in D1, not flat kNN)
+      // ------------------------------------------------------------------
+      if (path === '/forest/search' && req.method === 'GET') {
+        return await handleForestSearch(url, env);
+      }
       // Embed-only bridge: the offline vectorizer embeds through this binding
       // instead of the REST API — worker bindings don't carry OAuth tokens
       // that rotate out from under long-running scripts.
@@ -482,6 +490,148 @@ async function handleCanonSearch(url: URL, env: Env): Promise<Response> {
     }));
 
   return json({ ok: true, query: q, count: results.length, results });
+}
+
+// ============================================================================
+//  Forest — traversal-as-cognition over the chunk graph
+// ============================================================================
+//  The doctrine (Casey's card): memory is not a warehouse of flat facts, it is
+//  a weighted graph; the walk IS the thought. Here: embed the query, DROP into
+//  the top-1 node (the attractor), then best-first expand over forest_edges
+//  for N hops (default 2). Score of a node = drop_similarity × DECAY^hop ×
+//  Π(edge weights along the path) — monotonically non-increasing down any
+//  path, so the walk cools as it goes. Output deduped by file path; the walk
+//  itself is the answer. /canon/search stays untouched for the A/B.
+
+const FOREST_DECAY = 0.85;      // path_weight_decay per hop
+const FOREST_MAX_Q = 400;
+const FOREST_WALK_LEN = 8;
+const FOREST_MAX_EXPAND = 48;   // best-first pops per query (D1 edge reads)
+const FOREST_HOPS_MAX = 4;
+
+interface ForestVisit { id: string; score: number; hops: number }
+
+async function handleForestSearch(url: URL, env: Env): Promise<Response> {
+  const q = (url.searchParams.get('q') || '').trim().slice(0, FOREST_MAX_Q);
+  const hops = Math.min(FOREST_HOPS_MAX, Math.max(1, parseInt(url.searchParams.get('hops') || '2', 10) || 2));
+  if (!q) {
+    return json({ ok: true, query: '', drop: null, walk: [], stats: {}, hint: 'add ?q=…&hops=2 — the query is dropped into its attractor node and the walk expands over the forest_edges graph' });
+  }
+
+  // 1 — embed, drop into the attractor (best canonical node in the index)
+  let embedding: number[];
+  try {
+    const out: any = await env.AI.run('@cf/baai/bge-m3', { text: [q] });
+    embedding = out?.data?.[0] ?? out?.embeddings?.[0];
+    if (!Array.isArray(embedding) || embedding.length === 0) {
+      return json({ ok: false, error: 'embedding failed — model returned no vector' }, 502);
+    }
+  } catch (e: any) {
+    return json({ ok: false, error: `embedding failed: ${e?.message}` }, 502);
+  }
+
+  let dropScore = 0;
+  let dropId = '';
+  try {
+    const res = await env.CANON.query(embedding, { topK: 6, returnMetadata: 'all' });
+    const matches = (res?.matches || []).filter((m: VectorizeMatch) => m.metadata?.path && m.metadata?.chunk != null);
+    if (!matches.length) return json({ ok: false, error: 'no attractor — the index returned nothing' }, 504);
+    // prefer canonical path-style ids (the index also carries v2::hash dupes)
+    const canonical = matches.find((m) => !m.id.startsWith('v2::')) || matches[0];
+    dropScore = canonical.score;
+    const p = canonical.metadata!.path as string;
+    const c = canonical.metadata!.chunk as number;
+    dropId = `${p}::${c}`.replace(/\//g, '__').slice(0, 96);
+  } catch (e: any) {
+    return json({ ok: false, error: `vectorize query failed: ${e?.message}` }, 502);
+  }
+
+  // 2 — best-first expansion over forest_edges
+  const visited = new Map<string, ForestVisit>();
+  const frontier: ForestVisit[] = [{ id: dropId, score: dropScore, hops: 0 }];
+  visited.set(dropId, frontier[0]);
+  let edgesFollowed = 0;
+  let expanded = 0;
+  while (expanded < FOREST_MAX_EXPAND) {
+    frontier.sort((a, b) => b.score - a.score);
+    const node = frontier.shift();
+    if (!node) break;
+    if (node.hops >= hops) continue; // deeper than asked; still counted as visited
+    expanded++;
+    let rows: any[] = [];
+    try {
+      const r = await env.DB
+        .prepare('SELECT dst, kind, weight FROM forest_edges WHERE src = ?')
+        .bind(node.id)
+        .all();
+      rows = r.results || [];
+    } catch (e: any) {
+      return json({ ok: false, error: `edge read failed: ${e?.message}` }, 500);
+    }
+    edgesFollowed += rows.length;
+    for (const e of rows) {
+      const score = node.score * FOREST_DECAY * (e.weight as number);
+      const prev = visited.get(e.dst as string);
+      if (!prev || score > prev.score) {
+        visited.set(e.dst as string, { id: e.dst as string, score, hops: node.hops + 1 });
+        frontier.push(visited.get(e.dst as string)!);
+      }
+    }
+  }
+
+  // 3 — the walk is the answer: score-desc, dedupe by file path (drop first)
+  const ordered = [...visited.values()].sort((a, b) => b.score - a.score);
+  const seenPaths = new Set<string>();
+  const picked: ForestVisit[] = [];
+  for (const v of ordered) {
+    const path = v.id.split('::')[0].replace(/__/g, '/');
+    if (seenPaths.has(path)) continue;
+    seenPaths.add(path);
+    picked.push(v);
+    if (picked.length >= FOREST_WALK_LEN) break;
+  }
+
+  const ids = picked.map((v) => v.id);
+  const nodeRows = ids.length
+    ? (await env.DB
+        .prepare(`SELECT id, path, chunk, text FROM forest_nodes WHERE id IN (${ids.map(() => '?').join(',')})`)
+        .bind(...ids)
+        .all()).results || []
+    : [];
+  const byId = new Map<string, any>(nodeRows.map((r: any) => [r.id, r]));
+
+  const walk = picked.map((v) => {
+    const n = byId.get(v.id);
+    return {
+      path: n?.path ?? v.id.split('::')[0].replace(/__/g, '/'),
+      chunk: n?.chunk ?? null,
+      text: n?.text ?? '',
+      score: Math.round(v.score * 1e6) / 1e6,
+      hops: v.hops,
+      id: v.id,
+    };
+  });
+
+  const dropNode = byId.get(dropId);
+  return json({
+    ok: true,
+    query: q,
+    hops,
+    drop: {
+      path: dropNode?.path ?? dropId.split('::')[0].replace(/__/g, '/'),
+      chunk: dropNode?.chunk ?? null,
+      text: dropNode?.text ?? '',
+      score: Math.round(dropScore * 1e6) / 1e6,
+      id: dropId,
+    },
+    walk,
+    stats: {
+      nodes_visited: visited.size,
+      edges_followed: edgesFollowed,
+      decay: FOREST_DECAY,
+      hops,
+    },
+  });
 }
 
 // ============================================================================
