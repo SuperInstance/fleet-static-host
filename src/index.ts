@@ -237,6 +237,12 @@ export default {
       if (path === '/api/forest/node' && req.method === 'GET') {
         return await handleForestNode(url, env);
       }
+      if (path === '/api/forest/walk-log' && req.method === 'POST') {
+        return await handleForestWalkLog(req, env);
+      }
+      if (path === '/api/forest/weights' && req.method === 'GET') {
+        return await handleForestWeights(env);
+      }
       // Embed-only bridge: the offline vectorizer embeds through this binding
       // instead of the REST API — worker bindings don't carry OAuth tokens
       // that rotate out from under long-running scripts.
@@ -687,6 +693,67 @@ async function handleForestNode(url: URL, env: Env): Promise<Response> {
     return json({ ok: true, node: row });
   } catch (e: any) {
     return json({ ok: false, error: `node read failed: ${e?.message}` }, 500);
+  }
+}
+
+// ============================================================================
+//  Forest walk logging — Hebbian edge deepening
+// ============================================================================
+//  Every traversal hop is logged to forest_walks(ts, src, dst) for learning.
+//  Edge weights get boosted = base + ln(1 + walk_count) over time.
+
+const forestWalkLimiter = new RateLimiter(30, 2);
+
+async function handleForestWalkLog(req: Request, env: Env): Promise<Response> {
+  const ip = req.headers.get('CF-Connecting-IP') || 'local';
+  if (!forestWalkLimiter.take(ip)) {
+    return json({ error: 'rate limited' }, 429);
+  }
+  const body = await req.json().catch(() => null) as { hops?: Array<{ src: string; dst: string }> } | null;
+  if (!body || !Array.isArray(body.hops) || body.hops.length === 0) {
+    return json({ error: 'body must be {"hops":[{src,dst},…]}' }, 400);
+  }
+  const ts = Math.floor(Date.now() / 1000);
+  const hops = body.hops.slice(0, 16); // cap to prevent abuse
+  for (const hop of hops) {
+    const src = String(hop.src || '').slice(0, 96);
+    const dst = String(hop.dst || '').slice(0, 96);
+    if (!src || !dst) continue;
+    try {
+      await env.DB.prepare('INSERT INTO forest_walks (ts, src, dst) VALUES (?, ?, ?)').bind(ts, src, dst).run();
+    } catch (e: any) {
+      console.error(`forest_walks insert failed: ${e?.message}`);
+    }
+  }
+  return json({ ok: true, logged: hops.length });
+}
+
+async function handleForestWeights(env: Env): Promise<Response> {
+  try {
+    const edgeRows = await env.DB
+      .prepare(`
+        SELECT fe.src, fe.dst, fe.kind, fe.weight,
+               COALESCE(COUNT(fw.rowid), 0) AS walk_count
+        FROM forest_edges fe
+        LEFT JOIN forest_walks fw ON fe.src = fw.src AND fe.dst = fw.dst
+        GROUP BY fe.src, fe.dst, fe.kind
+      `)
+      .all();
+    const edges = (edgeRows.results || []).map((r: any) => {
+      const walkCount = r.walk_count as number;
+      const boosted = (r.weight as number) + Math.log(1 + walkCount);
+      return {
+        src: r.src as string,
+        dst: r.dst as string,
+        kind: r.kind as string,
+        base: r.weight as number,
+        walk_count: walkCount,
+        boosted,
+      };
+    });
+    return json({ ok: true, count: edges.length, edges });
+  } catch (e: any) {
+    return json({ ok: false, error: `weights read failed: ${e?.message}` }, 500);
   }
 }
 

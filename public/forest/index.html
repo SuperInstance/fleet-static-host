@@ -106,6 +106,15 @@
       '<div class="excerpt">'+snip(w.text)+'</div></div>';
   }
 
+  function logWalk(w){
+    const hops=[];
+    for(let i=0;i<w.length-1;i++){
+      hops.push({src:w[i].id,dst:w[i+1].id});
+    }
+    if(!hops.length)return;
+    fetch('/api/forest/walk-log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hops})}).catch(()=>{});
+  }
+
   function renderForest(j){
     if(!j.drop){$fres.innerHTML='<div class="empty">'+esc(j.hint||'no walk')+'</div>';return;}
     let h='<div class="drop"><div class="tag">▼ DROP · ATTRACTOR</div>'+
@@ -113,11 +122,13 @@
       (j.drop.chunk!=null?' <span class="chunk">· c'+j.drop.chunk+'</span>':'')+
       '</span><span class="score">score <b>'+j.drop.score.toFixed(3)+'</b></span></div>'+
       '<div class="excerpt">'+snip(j.drop.text)+'</div></div>';
-    h+=j.walk.filter(w=>w.hops>0).map(stepHtml).join('');
+    const walk=j.walk.filter(w=>w.hops>0);
+    h+=walk.map(stepHtml).join('');
     const s=j.stats||{};
     h+='<div class="stats">nodes visited '+s.nodes_visited+' · edges followed '+s.edges_followed+
        ' · decay '+s.decay+' · '+s.hops+' hop'+(s.hops===1?'':'s')+'</div>';
     $fres.innerHTML=h;
+    logWalk(walk);
   }
 
   function renderCanon(j){
