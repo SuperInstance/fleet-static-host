@@ -254,6 +254,9 @@ export default {
       if (path === '/api/forest/walk-analytics' && req.method === 'GET') {
         return await handleForestWalkAnalytics(env);
       }
+      if (path === '/api/forest/tide' && req.method === 'GET') {
+        return await handleForestTide(url, env);
+      }
       if (path === '/api/forest/diff' && req.method === 'GET') {
         return await handleForestDiff(url, env);
       }
@@ -1087,6 +1090,63 @@ async function handleForestWalkAnalytics(env: Env): Promise<Response> {
     });
   } catch (e: any) {
     return json({ ok: false, error: `analytics read failed: ${e?.message}` }, 500);
+  }
+}
+
+async function handleForestTide(url: URL, env: Env): Promise<Response> {
+  try {
+    const scale = (url.searchParams.get('scale') || '24h') as '24h' | '7d' | '30d';
+    const now = Math.floor(Date.now() / 1000);
+
+    let timeWindow: number;
+    let groupExpr: string;
+
+    if (scale === '24h') {
+      timeWindow = 86400;
+      groupExpr = `strftime('%Y-%m-%dT%H:%M:00', datetime(ts, 'unixepoch'))`;
+    } else if (scale === '7d') {
+      timeWindow = 7 * 86400;
+      groupExpr = `strftime('%Y-%m-%dT%H:00', datetime(ts, 'unixepoch'))`;
+    } else {
+      timeWindow = 30 * 86400;
+      groupExpr = `strftime('%Y-%m-%d', datetime(ts, 'unixepoch'))`;
+    }
+
+    const thresholdTs = now - timeWindow;
+
+    const bucketRes = await env.DB
+      .prepare(
+        `SELECT ${groupExpr} AS bucket, COUNT(*) AS count
+         FROM forest_walks
+         WHERE ts >= ?
+         GROUP BY bucket
+         ORDER BY bucket ASC`,
+      )
+      .bind(thresholdTs)
+      .all();
+
+    const buckets = (bucketRes.results || []) as Array<{ bucket: string; count: number }>;
+
+    const counts = buckets.map((b) => b.count);
+    const sortedCounts = [...counts].sort((a, b) => a - b);
+    const medianIdx = Math.floor(sortedCounts.length / 2);
+    const median = sortedCounts.length > 0 ? sortedCounts[medianIdx] : 0;
+    const alarmThreshold = median * 3;
+
+    const alarmBuckets = buckets.filter((b) => b.count > alarmThreshold);
+    const hasAlarm = alarmBuckets.length > 0;
+
+    return json({
+      ok: true,
+      scale,
+      median,
+      alarm_threshold: alarmThreshold,
+      has_alarm: hasAlarm,
+      alarm_buckets: alarmBuckets,
+      buckets,
+    });
+  } catch (e: any) {
+    return json({ ok: false, error: `tide read failed: ${e?.message}` }, 500);
   }
 }
 
