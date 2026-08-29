@@ -241,7 +241,10 @@ export default {
         return await handleForestWalkLog(req, env);
       }
       if (path === '/api/forest/weights' && req.method === 'GET') {
-        return await handleForestWeights(env);
+        return await handleForestWeights(url, env);
+      }
+      if (path === '/api/forest/walk-analytics' && req.method === 'GET') {
+        return await handleForestWalkAnalytics(env);
       }
       // Embed-only bridge: the offline vectorizer embeds through this binding
       // instead of the REST API — worker bindings don't carry OAuth tokens
@@ -431,6 +434,11 @@ async function handleLobby(req: Request, env: Env): Promise<Response> {
 
 const CANON_TOP_K = 8;
 const CANON_MAX_Q = 400;
+// Hebbian boost gain. Deliberately tiny: this is a TIE-BREAKER tier that only
+// reorders near-equal vector matches — it must never become a ranking channel
+// of its own (0.05 * ln(1 + walk_count) saturates around ~0.35 even on a
+// 1000-walk edge, well under a typical vector-score gap).
+const CANON_HEBBIAN_GAIN = 0.05;
 
 // Embed bridge caps: 64 texts × 2000 chars per call (vectorizer batch size).
 const EMBED_MAX_TEXTS = 64;
@@ -501,7 +509,41 @@ async function handleCanonSearch(url: URL, env: Env): Promise<Response> {
       score: m.score,
     }));
 
-  return json({ ok: true, query: q, count: results.length, results });
+  // Hebbian tie-breaker: for each result chunk, look up its incident
+  // forest_edges in D1 and add bonus = Σ 0.05 * ln(1 + walk_count) over those
+  // edges. Deepened (well-walked) neighborhoods nudge near-ties; ?raw=1 skips
+  // the graph read and returns pure vector ranking. The bonus is reported per
+  // result so its contribution stays auditable.
+  const raw = url.searchParams.get('raw') === '1';
+  for (const r of results) {
+    let boost = 0;
+    if (!raw && r.chunk != null) {
+      const nodeId = `${r.path}::${r.chunk}`.replace(/\//g, '__').slice(0, 96);
+      try {
+        const rows = await env.DB
+          .prepare(
+            `SELECT fe.src, fe.dst, COUNT(fw.rowid) AS walk_count
+             FROM forest_edges fe
+             LEFT JOIN forest_walks fw ON fw.src = fe.src AND fw.dst = fe.dst
+             WHERE fe.src = ? OR fe.dst = ?
+             GROUP BY fe.src, fe.dst`,
+          )
+          .bind(nodeId, nodeId)
+          .all();
+        for (const e of rows.results || []) {
+          boost += CANON_HEBBIAN_GAIN * Math.log(1 + (e.walk_count as number));
+        }
+      } catch (e: any) {
+        // Graph read failure must never break search: fall back to raw ranking.
+        console.error(`canon boost read failed for ${nodeId}: ${e?.message}`);
+      }
+    }
+    (r as any).boost = Math.round(boost * 1e6) / 1e6;
+    r.score = Math.round((r.score + boost) * 1e6) / 1e6;
+  }
+  if (!raw) results.sort((a, b) => b.score - a.score);
+
+  return json({ ok: true, query: q, count: results.length, raw, results });
 }
 
 // ============================================================================
@@ -701,6 +743,12 @@ async function handleForestNode(url: URL, env: Env): Promise<Response> {
 // ============================================================================
 //  Every traversal hop is logged to forest_walks(ts, src, dst) for learning.
 //  Edge weights get boosted = base + ln(1 + walk_count) over time.
+//  Phase 0 hardening (research/61 §4.3): a session-scoped id dedups (src,dst)
+//  per session so same-session echo never inflates the counter; ?decayed=1
+//  computes the counter-decay effective weight W = Σ 2^(−age_days/90) per edge.
+
+const FOREST_SESSION_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
+const FOREST_DECAY_HALF_LIFE_DAYS = 90;
 
 const forestWalkLimiter = new RateLimiter(30, 2);
 
@@ -709,49 +757,79 @@ async function handleForestWalkLog(req: Request, env: Env): Promise<Response> {
   if (!forestWalkLimiter.take(ip)) {
     return json({ error: 'rate limited' }, 429);
   }
-  const body = await req.json().catch(() => null) as { hops?: Array<{ src: string; dst: string }> } | null;
+  const body = await req.json().catch(() => null) as { hops?: Array<{ src: string; dst: string }>; sessionId?: string } | null;
   if (!body || !Array.isArray(body.hops) || body.hops.length === 0) {
-    return json({ error: 'body must be {"hops":[{src,dst},…]}' }, 400);
+    return json({ error: 'body must be {"hops":[{src,dst},…], "sessionId":…}' }, 400);
   }
+  const sessionId =
+    typeof body.sessionId === 'string' && FOREST_SESSION_ID_RE.test(body.sessionId)
+      ? body.sessionId
+      : null;
   const ts = Math.floor(Date.now() / 1000);
   const hops = body.hops.slice(0, 16); // cap to prevent abuse
+  let logged = 0;
+  let deduped = 0;
   for (const hop of hops) {
     const src = String(hop.src || '').slice(0, 96);
     const dst = String(hop.dst || '').slice(0, 96);
     if (!src || !dst) continue;
     try {
-      await env.DB.prepare('INSERT INTO forest_walks (ts, src, dst) VALUES (?, ?, ?)').bind(ts, src, dst).run();
+      if (sessionId) {
+        const seen = await env.DB
+          .prepare('SELECT 1 FROM forest_walks WHERE src = ? AND dst = ? AND session_id = ? LIMIT 1')
+          .bind(src, dst, sessionId)
+          .first();
+        if (seen) { deduped++; continue; } // same-session echo: already counted
+      }
+      await env.DB.prepare('INSERT INTO forest_walks (ts, src, dst, session_id) VALUES (?, ?, ?, ?)').bind(ts, src, dst, sessionId).run();
+      logged++;
     } catch (e: any) {
       console.error(`forest_walks insert failed: ${e?.message}`);
     }
   }
-  return json({ ok: true, logged: hops.length });
+  return json({ ok: true, logged, deduped });
 }
 
-async function handleForestWeights(env: Env): Promise<Response> {
+async function handleForestWeights(url: URL, env: Env): Promise<Response> {
+  const decayed = url.searchParams.get('decayed') === '1';
   try {
+    // Plain: boosted = base + ln(1 + walk_count). Decayed: each walk contributes
+    // 2^(−age_days/90) to an effective counter W, boosted = base + ln(1 + W) —
+    // the counter-decay shape from research/61 §3.3, computed read-time (lazy).
+    const now = Math.floor(Date.now() / 1000);
     const edgeRows = await env.DB
-      .prepare(`
-        SELECT fe.src, fe.dst, fe.kind, fe.weight,
-               COALESCE(COUNT(fw.rowid), 0) AS walk_count
-        FROM forest_edges fe
-        LEFT JOIN forest_walks fw ON fe.src = fw.src AND fe.dst = fw.dst
-        GROUP BY fe.src, fe.dst, fe.kind
-      `)
-      .all();
-    const edges = (edgeRows.results || []).map((r: any) => {
+      .prepare(decayed
+        ? `
+          SELECT fe.src, fe.dst, fe.kind, fe.weight,
+                 COALESCE(COUNT(fw.rowid), 0) AS walk_count,
+                 COALESCE(SUM(POW(0.5, (? - fw.ts) * 1.0 / 86400.0 / ${FOREST_DECAY_HALF_LIFE_DAYS})), 0) AS w
+          FROM forest_edges fe
+          LEFT JOIN forest_walks fw ON fe.src = fw.src AND fe.dst = fw.dst
+          GROUP BY fe.src, fe.dst, fe.kind
+        `
+        : `
+          SELECT fe.src, fe.dst, fe.kind, fe.weight,
+                 COALESCE(COUNT(fw.rowid), 0) AS walk_count
+          FROM forest_edges fe
+          LEFT JOIN forest_walks fw ON fe.src = fw.src AND fe.dst = fw.dst
+          GROUP BY fe.src, fe.dst, fe.kind
+        `);
+    const edgeRowsRes = await (decayed ? edgeRows.bind(now) : edgeRows).all();
+    const edges = (edgeRowsRes.results || []).map((r: any) => {
       const walkCount = r.walk_count as number;
-      const boosted = (r.weight as number) + Math.log(1 + walkCount);
+      const w = decayed ? (r.w as number) : walkCount;
+      const boosted = (r.weight as number) + Math.log(1 + w);
       return {
         src: r.src as string,
         dst: r.dst as string,
         kind: r.kind as string,
         base: r.weight as number,
         walk_count: walkCount,
+        ...(decayed ? { w: Math.round(w * 1e6) / 1e6 } : {}),
         boosted,
       };
     });
-    return json({ ok: true, count: edges.length, edges });
+    return json({ ok: true, count: edges.length, ...(decayed ? { decayed: true, half_life_days: FOREST_DECAY_HALF_LIFE_DAYS } : {}), edges });
   } catch (e: any) {
     return json({ ok: false, error: `weights read failed: ${e?.message}` }, 500);
   }
