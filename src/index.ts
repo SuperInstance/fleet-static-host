@@ -223,6 +223,12 @@ export default {
       if (path === '/canon/search' && req.method === 'GET') {
         return await handleCanonSearch(url, env);
       }
+      // Embed-only bridge: the offline vectorizer embeds through this binding
+      // instead of the REST API — worker bindings don't carry OAuth tokens
+      // that rotate out from under long-running scripts.
+      if (path === '/ai/embed' && req.method === 'POST') {
+        return await handleEmbed(req, env);
+      }
 
       // ------------------------------------------------------------------
       // USCP telemetry sink — games phone home here (opt-in on their side)
@@ -405,6 +411,34 @@ async function handleLobby(req: Request, env: Env): Promise<Response> {
 
 const CANON_TOP_K = 8;
 const CANON_MAX_Q = 400;
+
+// Embed bridge caps: 64 texts × 2000 chars per call (vectorizer batch size).
+const EMBED_MAX_TEXTS = 64;
+const EMBED_MAX_CHARS = 2000;
+
+async function handleEmbed(req: Request, env: Env): Promise<Response> {
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ ok: false, error: 'body must be JSON {text:[…]}' }, 400);
+  }
+  const texts: string[] = Array.isArray(body?.text) ? body.text : [];
+  if (texts.length === 0 || texts.length > EMBED_MAX_TEXTS) {
+    return json({ ok: false, error: `text must be an array of 1–${EMBED_MAX_TEXTS} strings` }, 400);
+  }
+  const clean = texts.map((t) => String(t).slice(0, EMBED_MAX_CHARS));
+  try {
+    const out: any = await env.AI.run('@cf/baai/bge-m3', { text: clean });
+    const vectors = out?.data ?? out?.embeddings;
+    if (!Array.isArray(vectors) || vectors.length !== clean.length) {
+      return json({ ok: false, error: 'embedding failed — model returned wrong shape' }, 502);
+    }
+    return json({ ok: true, vectors });
+  } catch (e: any) {
+    return json({ ok: false, error: `embedding failed: ${e?.message}` }, 502);
+  }
+}
 
 async function handleCanonSearch(url: URL, env: Env): Promise<Response> {
   const q = (url.searchParams.get('q') || '').trim().slice(0, CANON_MAX_Q);
