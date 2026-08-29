@@ -5,3 +5,4 @@ node_modules/
 __pycache__/
 tools/forest-nodes.sql
 tools/forest-edges.sql
+tools/embed-qc-report.json
