@@ -12,6 +12,8 @@
       "/ai/embed",
       "/canon/search",
       "/forest/search",
+      "/mcp",
+      "/.well-known/mcp",
       "/papers",
       "/papers/*",
       "/writings",

@@ -24,6 +24,7 @@ import {
   USCP_SHEET, USCP_CELL_PREFIX, USCP_MAX_BODY_BYTES,
   RateLimiter, validateEnvelope, mergeTelemetry, type UscpPacket, type TelemetryCell,
 } from './uscp';
+import { handleMcp } from './mcp';
 
 export interface Env {
   DB: D1Database;
@@ -31,6 +32,7 @@ export interface Env {
   QUILT_SEED_KEY?: string;
   AI: Ai;
   CANON: Vectorize;
+  MCP_TOKEN?: string;
 }
 
 const AUTHOR = 'fleet-static-host';
@@ -51,7 +53,9 @@ function json(data: any, status = 200, cors = true): Response {
   if (cors) {
     headers['Access-Control-Allow-Origin'] = '*';
     headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
-    headers['Access-Control-Allow-Headers'] = 'Content-Type, X-Quilt-Key';
+    // Authorization + Mcp-Session-Id: browser-based MCP clients need to send
+    // the bearer token (and streamable-HTTP clients may offer a session id).
+    headers['Access-Control-Allow-Headers'] = 'Content-Type, X-Quilt-Key, Authorization, Mcp-Session-Id';
   }
   return new Response(JSON.stringify(data, null, 2), { status, headers });
 }
@@ -75,7 +79,7 @@ export default {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, X-Quilt-Key',
+          'Access-Control-Allow-Headers': 'Content-Type, X-Quilt-Key, Authorization, Mcp-Session-Id',
         },
       });
     }
@@ -268,6 +272,30 @@ export default {
       }
       if (path === '/api/forest/marooned' && req.method === 'GET') {
         return await handleForestMarooned(url, env);
+      }
+
+      // ------------------------------------------------------------------
+      // MCP bridge — JSON-RPC 2.0 surface for external agents (research/63)
+      // Stateless streamable-HTTP shape: single POST, JSON replies, no SSE
+      // stream, no sessions. Bearer auth via MCP_TOKEN (see tools/MCP-BRIDGE.md);
+      // external walks are read-only and carry ZERO Hebbian credit.
+      // ------------------------------------------------------------------
+      if (path === '/mcp' || path === '/api/mcp' || path === '/.well-known/mcp') {
+        if (req.method === 'POST') {
+          return await handleMcp(req, env, {
+            // Delegate to the exact /canon/search implementation — one search
+            // path, no drift between the web API and the MCP tool.
+            canonSearch: async (q: string, limit: number | null) => {
+              const u = new URL(req.url);
+              u.pathname = '/canon/search';
+              const sp = new URLSearchParams({ q });
+              if (limit != null) sp.set('limit', String(limit));
+              u.search = sp.toString();
+              return await (await handleCanonSearch(u, env)).json();
+            },
+          });
+        }
+        return new Response(null, { status: 405, headers: { Allow: 'POST' } });
       }
       // Embed-only bridge: the offline vectorizer embeds through this binding
       // instead of the REST API — worker bindings don't carry OAuth tokens
@@ -475,6 +503,9 @@ async function handleLobby(req: Request, env: Env): Promise<Response> {
 
 const CANON_TOP_K = 8;
 const CANON_MAX_Q = 400;
+// Optional ?limit= (1..100) — added for the MCP canon_search tool (paper 63
+// §4.1: limit default 20, max 100). Unset keeps the original CANON_TOP_K=8.
+const CANON_LIMIT_MAX = 100;
 // Hebbian boost gain. Deliberately tiny: this is a TIE-BREAKER tier that only
 // reorders near-equal vector matches — it must never become a ranking channel
 // of its own (0.05 * ln(1 + walk_count) saturates around ~0.35 even on a
@@ -511,6 +542,8 @@ async function handleEmbed(req: Request, env: Env): Promise<Response> {
 
 async function handleCanonSearch(url: URL, env: Env): Promise<Response> {
   const q = (url.searchParams.get('q') || '').trim().slice(0, CANON_MAX_Q);
+  const limitRaw = parseInt(url.searchParams.get('limit') || '', 10);
+  const topK = Number.isFinite(limitRaw) ? Math.min(CANON_LIMIT_MAX, Math.max(1, limitRaw)) : CANON_TOP_K;
   if (!q) {
     return json({ ok: true, query: '', count: 0, results: [], hint: 'add ?q=… — the query is embedded with bge-m3 and matched against the ai-writings corpus' });
   }
@@ -528,7 +561,7 @@ async function handleCanonSearch(url: URL, env: Env): Promise<Response> {
 
   let matches: VectorizeMatch[] = [];
   try {
-    const res = await env.CANON.query(embedding, { topK: CANON_TOP_K, returnMetadata: 'all' });
+    const res = await env.CANON.query(embedding, { topK, returnMetadata: 'all' });
     matches = (res?.matches || []).filter((m: VectorizeMatch) => m.metadata?.path);
   } catch (e: any) {
     return json({ ok: false, error: `vectorize query failed: ${e?.message}` }, 502);
