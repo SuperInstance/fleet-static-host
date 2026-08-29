@@ -23,6 +23,8 @@
         border-radius:10px;padding:14px 16px;position:sticky;top:16px}
   aside h2{margin:0 0 4px;font-size:13px;color:var(--ok);letter-spacing:.08em}
   aside .sub{color:var(--dim);font-size:12px;margin-bottom:10px}
+  aside summary{list-style:none;cursor:default}
+  aside summary::-webkit-details-marker{display:none}
   .inv{display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12px}
   .inv:first-of-type{border-top:none}
   .inv .tick{color:var(--ok);flex:none}
@@ -98,6 +100,35 @@
   .legend code{color:var(--accent)}
   kbd{background:var(--panel2);border:1px solid var(--line);border-radius:4px;
       padding:0 5px;font-size:11px}
+
+  /* ---------- mobile (≤640px) ---------- */
+  @media (max-width:640px){
+    body{font-size:15px}
+    header{padding:14px 14px 8px}
+    header h1{font-size:16px}
+    header p{font-size:13px}
+    .wrap{flex-direction:column;padding:12px 14px;gap:12px}
+    .univrow{flex-direction:column;gap:12px}
+    .universe{padding:12px}
+    /* cell grids reflow to a single column (inline gridColumn/gridRow are
+       drawing-only layout, ignored by flex) */
+    .grid{display:flex;flex-direction:column;gap:8px}
+    .cell{width:auto;height:auto;min-height:72px}
+    .readout{padding:10px 12px}
+    .readout .full{font-size:14px}
+    .controls button{min-height:44px;padding:10px 16px;font-size:13px;flex:1 1 auto}
+    .faces{padding:12px}
+    .face{min-width:0}
+    /* invariant sidebar becomes a collapsible section */
+    aside{width:100%;position:static;padding:10px 12px}
+    aside summary{cursor:pointer;position:relative;padding-right:26px;
+                  -webkit-tap-highlight-color:transparent}
+    aside summary::after{content:"▸";position:absolute;right:6px;top:0;
+                         color:var(--ok);font-size:14px;transition:transform .15s}
+    aside details[open] summary::after{transform:rotate(90deg)}
+    aside summary .sub{margin-bottom:0}
+    aside details[open] summary .sub{margin-bottom:10px}
+  }
 </style>
 </head>
 <body>
@@ -155,9 +186,13 @@
 </main>
 
 <aside>
-  <h2>✓ INVARIANTS — never violated</h2>
-  <div class="sub">checked continuously by this demo; a violation would turn a tick red. None ever has.</div>
-  <div id="invlist"></div>
+  <details id="invdetails" open>
+    <summary>
+      <h2>✓ INVARIANTS — never violated</h2>
+      <div class="sub">checked continuously by this demo; a violation would turn a tick red. None ever has.</div>
+    </summary>
+    <div id="invlist"></div>
+  </details>
 </aside>
 </div>
 
@@ -456,6 +491,14 @@ document.getElementById("btnDown").onclick=()=>!busy&&animateJourney("U0","L","U
 document.getElementById("btnUp").onclick=()=>!busy&&animateJourney("U1","S2","U0","L","-1/0/0 ^ -2/0/0",
   ["S2 answers along reverse of the path it was reached by — the reversal rule survives portals unchanged (§1.4, A5)."]);
 document.getElementById("btnReset").onclick=()=>!busy&&setOrigin("U0","L");
+
+/* ---------- collapsible invariants: open on desktop, collapsed on mobile ---------- */
+const invDetails = document.getElementById("invdetails");
+const invMQ = matchMedia("(max-width:640px)");
+const syncInv = () => { invDetails.open = !invMQ.matches; };
+if(invMQ.addEventListener) invMQ.addEventListener("change", syncInv);
+else invMQ.addListener(syncInv);
+syncInv();
 
 buildGrids(); render(); renderFaces();
 </script>
