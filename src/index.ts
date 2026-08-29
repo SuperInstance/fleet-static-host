@@ -232,7 +232,7 @@ export default {
         return await handleCanonSearch(url, env);
       }
       if (path === '/api/canon/stats' && req.method === 'GET') {
-        return await handleCanonStats(env);
+        return await handleCanonStats(url, env);
       }
 
       // ------------------------------------------------------------------
@@ -616,8 +616,10 @@ const CANON_STATS_PREFIX_CHARS = 48;
 const CANON_STATS_LEN_BUCKET = 256;
 const CANON_STATS_DUP_WARN = 0.05;
 
-async function handleCanonStats(env: Env): Promise<Response> {
+async function handleCanonStats(url: URL, env: Env): Promise<Response> {
   try {
+    const includeGroups = url.searchParams.get('groups') === '1';
+
     const [totals, dirs, sample, indexInfo] = await Promise.all([
       env.DB.prepare('SELECT COUNT(*) AS chunks, COUNT(DISTINCT path) AS files FROM forest_nodes').first(),
       env.DB.prepare(
@@ -654,7 +656,7 @@ async function handleCanonStats(env: Env): Promise<Response> {
 
     // Duplicate grouping over the sample: (trimmed prefix, length bucket).
     const rows = (sample.results || []) as Array<{ prefix: string | null; len: number | null }>;
-    const groups = new Map<string, { prefix: string; bucket: number; count: number }>();
+    const groups = new Map<string, { prefix: string; bucket: number; count: number; ids?: string[] }>();
     for (const r of rows) {
       const prefix = (r.prefix || '').slice(0, CANON_STATS_PREFIX_CHARS);
       const bucket = Math.floor((r.len || 0) / CANON_STATS_LEN_BUCKET);
@@ -663,10 +665,48 @@ async function handleCanonStats(env: Env): Promise<Response> {
       if (g) g.count++;
       else groups.set(key, { prefix, bucket, count: 1 });
     }
+
+    // If groups=1, fetch full member IDs for each duplicate group
+    let groupMembers: Map<string, string[]> | null = null;
+    if (includeGroups) {
+      const dupGroupList = [...groups.values()].filter((g) => g.count > 1);
+      if (dupGroupList.length > 0) {
+        groupMembers = new Map();
+        const memberPromises = dupGroupList.map((g) =>
+          env.DB.prepare(
+            `SELECT id FROM forest_nodes
+             WHERE TRIM(SUBSTR(text, 1, ?)) = ? AND (LENGTH(text) / ? = ?)`,
+          ).bind(CANON_STATS_PREFIX_CHARS, g.prefix, CANON_STATS_LEN_BUCKET, g.bucket).all()
+            .then((result) => {
+              const key = JSON.stringify([g.prefix, g.bucket]);
+              groupMembers!.set(key, (result.results || []).map((r: any) => r.id as string));
+            })
+            .catch(() => {
+              /* failed, leave empty */
+            }),
+        );
+        await Promise.all(memberPromises);
+      }
+    }
+
     const dupGroups = [...groups.values()].filter((g) => g.count > 1).sort((a, b) => b.count - a.count);
     const dupChunks = dupGroups.reduce((sum, g) => sum + g.count, 0);
     const sampleSize = rows.length;
     const dupRate = sampleSize > 0 ? dupChunks / sampleSize : 0;
+
+    const topGroups = dupGroups.slice(0, 5).map((g) => {
+      const result: any = {
+        prefix: g.prefix,
+        length_bucket: g.bucket,
+        bucket_min_chars: g.bucket * CANON_STATS_LEN_BUCKET,
+        count: g.count,
+      };
+      if (includeGroups && groupMembers) {
+        const key = JSON.stringify([g.prefix, g.bucket]);
+        result.member_ids = groupMembers.get(key) || [];
+      }
+      return result;
+    });
 
     return json({
       ok: true,
@@ -694,12 +734,7 @@ async function handleCanonStats(env: Env): Promise<Response> {
         duplicate_chunks: dupChunks,
         duplicate_rate: Math.round(dupRate * 10000) / 10000,
         largest_group: dupGroups.length ? dupGroups[0].count : 0,
-        top_groups: dupGroups.slice(0, 5).map((g) => ({
-          prefix: g.prefix,
-          length_bucket: g.bucket,
-          bucket_min_chars: g.bucket * CANON_STATS_LEN_BUCKET,
-          count: g.count,
-        })),
+        top_groups: topGroups,
       },
       warning: dupRate > CANON_STATS_DUP_WARN
         ? `duplicate sample rate ${(dupRate * 100).toFixed(1)}% exceeds ${CANON_STATS_DUP_WARN * 100}% — see duplicates.duplicate_rate`
