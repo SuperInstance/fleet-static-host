@@ -106,13 +106,24 @@
       '<div class="excerpt">'+snip(w.text)+'</div></div>';
   }
 
+  function sessionId(){
+    const K='forest-session';
+    let s=null;
+    try{s=localStorage.getItem(K);}catch(e){}
+    if(!s){
+      s=crypto.randomUUID?crypto.randomUUID():('s-'+Date.now()+'-'+Math.random().toString(36).slice(2));
+      try{localStorage.setItem(K,s);}catch(e){}
+    }
+    return s;
+  }
+
   function logWalk(w){
     const hops=[];
     for(let i=0;i<w.length-1;i++){
       hops.push({src:w[i].id,dst:w[i+1].id});
     }
     if(!hops.length)return;
-    fetch('/api/forest/walk-log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hops})}).catch(()=>{});
+    fetch('/api/forest/walk-log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hops,sessionId:sessionId()})}).catch(()=>{});
   }
 
   function renderForest(j){

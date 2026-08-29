@@ -23,10 +23,12 @@ The forest is a topology: authors write papers, cite each other (ref edges), chu
 CREATE TABLE forest_walks (
   ts INTEGER NOT NULL,           -- epoch seconds
   src TEXT NOT NULL,             -- node id
-  dst TEXT NOT NULL              -- node id
+  dst TEXT NOT NULL,             -- node id
+  session_id TEXT                -- optional uuid (walk page localStorage) — migration 0004
 );
 CREATE INDEX idx_forest_walks_ts ON forest_walks (ts);
 CREATE INDEX idx_forest_walks_edge ON forest_walks (src, dst);
+CREATE INDEX idx_forest_walks_edge_session ON forest_walks (src, dst, session_id);
 ```
 
 ## API
@@ -50,10 +52,11 @@ CREATE INDEX idx_forest_walks_edge ON forest_walks (src, dst);
 }
 ```
 
-**POST /api/forest/walk-log** logs a traversal (rate-limited to 30 req/s per IP, refill 2 tokens/s):
+**POST /api/forest/walk-log** logs a traversal (rate-limited to 30 req/s per IP, refill 2 tokens/s). An optional `sessionId` (uuid from the walk page's localStorage) dedups each (src, dst) pair per session — same-session echo never inflates the counter (research/61 §4.3):
 
 ```json
 {
+  "sessionId": "b6c1f0aa-9d3e-4c1a-8f22-2e1d5a7c9b41",
   "hops": [
     {"src": "node_a", "dst": "node_b"},
     {"src": "node_b", "dst": "node_c"}
@@ -61,7 +64,9 @@ CREATE INDEX idx_forest_walks_edge ON forest_walks (src, dst);
 }
 ```
 
-Returns `{"ok": true, "logged": 2}`.
+Returns `{"ok": true, "logged": 2, "deduped": 0}` — `logged` counts rows actually inserted, `deduped` counts same-session skips.
+
+**GET /api/forest/weights?decayed=1** computes the counter-decay effective weight from research/61 §3.3: each walk contributes `2^(−age_days/90)` to a per-edge sum `W`, and `boosted = base + ln(1 + W)`. Old walks fade with a 90-day half-life; the stored log stays append-only and rebuildable. Without `?decayed=1` the endpoint keeps the raw `boosted = base + ln(1 + walk_count)` behavior.
 
 ## Live Application
 
