@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Canon Stats</title>
+<style>
+  :root{--bg:#0b0e12;--fg:#c9d4e0;--dim:#5c6a7a;--acc:#4fb3a9;--warn:#d9a441;--bad:#c95d5d;--line:#1c242e;--card:#141b24}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 ui-monospace,Menlo,Consolas,monospace}
+  header{padding:2rem 2rem 1rem;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:1.3rem;letter-spacing:.08em}
+  h1 span{color:var(--acc)}
+  header p{color:var(--dim);margin:.4rem 0 0;max-width:78ch}
+  main{padding:1.5rem 2rem 2rem;max-width:1080px;margin:0 auto}
+  .headline{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:2rem}
+  .stat{border:1px solid var(--line);border-radius:.4rem;background:var(--card);padding:1rem;text-align:center}
+  .stat .label{color:var(--dim);font-size:.75rem;letter-spacing:.1em;margin-bottom:.3rem}
+  .stat .value{font-size:1.8rem;font-weight:bold;color:var(--acc)}
+  .stat .sub{color:var(--dim);font-size:.7rem;margin-top:.3rem}
+  .banner{border:2px solid var(--bad);border-radius:.4rem;background:rgba(201,93,93,.08);padding:1rem;margin-bottom:2rem;color:var(--bad)}
+  .banner .title{font-weight:bold;margin-bottom:.5rem}
+  .banner .subtitle{color:var(--fg);font-size:.85rem}
+  section{margin-bottom:2.5rem}
+  section h2{font-size:.85rem;letter-spacing:.12em;color:var(--dim);margin:0 0 1rem;border-bottom:1px solid var(--line);padding-bottom:.4rem;text-transform:uppercase}
+  .chart{padding:1rem;background:var(--card);border:1px solid var(--line);border-radius:.4rem;overflow-x:auto}
+  .chart svg{display:block;max-width:100%}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;padding:.5rem 0;font-size:.8rem;letter-spacing:.1em;color:var(--dim);border-bottom:1px solid var(--line)}
+  td{padding:.5rem 0;border-bottom:1px solid #243040;font-size:.85rem;overflow-wrap:break-word}
+  tr:hover{background:rgba(79,179,169,.04)}
+  .count{text-align:right;font-weight:bold;color:var(--acc)}
+  .note{border:1px solid var(--line);border-radius:.4rem;background:var(--card);padding:1rem 1.2rem;margin-bottom:.8rem;font-size:.82rem;color:var(--dim)}
+  .note b{color:var(--warn);font-weight:bold}
+  .note code{color:var(--fg)}
+  .prefix{color:var(--acc);font-family:inherit}
+  .loading{color:var(--dim);padding:2rem;text-align:center}
+  .error{color:var(--bad);padding:1rem;background:rgba(201,93,93,.08);border:1px solid var(--bad);border-radius:.4rem;margin-bottom:1rem}
+  footer{padding:2rem;color:var(--dim);font-size:.75rem;border-top:1px solid var(--line);margin-top:3rem}
+  footer a{color:var(--acc);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  @media (max-width:900px){
+    main{padding:1rem}
+    .headline{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+    .stat{padding:.7rem}
+    .stat .value{font-size:1.4rem}
+    table{font-size:.75rem}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>CANON <span>·</span> CORPUS STATS</h1>
+  <p>Shape of the ai-writings canon as mirrored in D1 (forest_nodes): chunk census, per-directory histogram, embedding-coverage approximation, and a sampled duplicate-rate check. Numbers from <code>GET /api/canon/stats</code>.</p>
+</header>
+<main>
+  <div id="content">
+    <div class="loading">Loading canon stats…</div>
+  </div>
+</main>
+<footer>
+  Back to <a href="/canon/">canon search</a> or <a href="/forest/analytics.html">forest analytics</a>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  const $content=document.getElementById('content');
+
+  function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function pct(x){return x==null?'—':(x*100).toFixed(1)+'%';}
+
+  async function loadStats(){
+    try{
+      const r=await fetch('/api/canon/stats');
+      const j=await r.json();
+      if(!j.ok)throw new Error(j.error||'stats fetch failed');
+      render(j);
+    }catch(e){
+      $content.innerHTML='<div class="error">Failed to load canon stats: '+esc(e.message)+'</div>';
+    }
+  }
+
+  function render(d){
+    const {corpus,embedding_coverage,duplicates}=d;
+    let html='';
+
+    // Headline stats
+    html+='<div class="headline">'+
+      '<div class="stat"><div class="label">Total Chunks</div><div class="value">'+corpus.total_chunks+'</div><div class="sub">forest_nodes rows</div></div>'+
+      '<div class="stat"><div class="label">Distinct Files</div><div class="value">'+corpus.distinct_files+'</div><div class="sub">source documents</div></div>'+
+      '<div class="stat"><div class="label">Directories</div><div class="value">'+corpus.directories.length+'</div><div class="sub">top-level</div></div>'+
+      '<div class="stat"><div class="label">Embedding Coverage</div><div class="value">'+pct(embedding_coverage.approx_coverage)+'</div><div class="sub">approx · upper bound</div></div>'+
+      '<div class="stat"><div class="label">Duplicate Rate</div><div class="value">'+pct(duplicates.duplicate_rate)+'</div><div class="sub">sample n='+duplicates.sample_size+'</div></div>'+
+      '</div>';
+
+    // Duplicate warning banner (>5% sample rate)
+    if(duplicates.duplicate_rate>0.05){
+      html+='<div class="banner">'+
+        '<div class="title">⚠ Duplicate Rate Above 5% Threshold</div>'+
+        '<div class="subtitle">'+esc(d.warning||('sampled duplicate rate '+pct(duplicates.duplicate_rate)+' exceeds 5% ('+duplicates.duplicate_groups+' duplicate groups, '+duplicates.duplicate_chunks+' of '+duplicates.sample_size+' sampled chunks). Sample-based estimate — see method notes below.'))+'</div>'+
+        '</div>';
+    }
+
+    // Method notes (the two documented approximations, straight from the payload)
+    html+='<section><h2>Method — Read the Fine Print</h2>'+
+      '<div class="note"><b>Embedding coverage is an approximation.</b> '+esc(embedding_coverage.approximation)+
+      ' Computed as vectorize_vector_count ('+embedding_coverage.vectorize_vector_count+') / d1_mirror_chunks ('+embedding_coverage.d1_mirror_chunks+').</div>'+
+      '<div class="note"><b>Duplicate rate is a '+duplicates.sample_size+'-chunk sample of '+duplicates.sampled_of_total+'.</b> '+
+      'Selection: '+esc(duplicates.method.selection)+'. Matching: '+esc(duplicates.method.matching)+'.</div>'+
+      '</section>';
+
+    // Directory histogram (inline SVG, horizontal bars)
+    const dirs=corpus.directories||[];
+    if(dirs.length>0){
+      const maxChunks=Math.max(...dirs.map(x=>x.chunks),1);
+      const rowH=30,padL=190,padR=90,chartW=Math.max(640,Math.min(960,padL+padR+dirs.length*80));
+      const chartH=dirs.length*rowH+14;
+      let svgHtml='<svg viewBox="0 0 '+chartW+' '+chartH+'" width="'+chartW+'" height="'+chartH+'" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="chunks per directory">';
+      for(let i=0;i<dirs.length;i++){
+        const d=dirs[i];
+        const y=i*rowH+8;
+        const barMax=chartW-padL-padR;
+        const w=Math.max(2,Math.round(d.chunks/maxChunks*barMax));
+        svgHtml+='<text x="'+(padL-10)+'" y="'+(y+14)+'" font-size="13" fill="#c9d4e0" text-anchor="end">'+esc(d.dir)+'</text>';
+        svgHtml+='<rect x="'+padL+'" y="'+y+'" width="'+w+'" height="18" fill="#4fb3a9" opacity="0.8" rx="2">';
+        svgHtml+='<title>'+esc(d.dir)+': '+d.chunks+' chunks across '+d.files+' files</title></rect>';
+        svgHtml+='<text x="'+(padL+w+8)+'" y="'+(y+14)+'" font-size="12" fill="#5c6a7a">'+d.chunks+'</text>';
+      }
+      svgHtml+='</svg>';
+      html+='<section><h2>Chunks per Directory</h2><div class="chart">'+svgHtml+'</div></section>';
+    }
+
+    // Top duplicate groups table
+    if(duplicates.duplicate_groups>0&&(duplicates.top_groups||[]).length>0){
+      html+='<section><h2>Largest Duplicate Groups (sample)</h2>'+
+        '<table><thead><tr><th>Shared Prefix</th><th>Length Bucket</th><th style="text-align:right">Chunks</th></tr></thead><tbody>';
+      for(const g of duplicates.top_groups){
+        html+='<tr>'+
+          '<td class="prefix">“'+esc(g.prefix)+'…”</td>'+
+          '<td>'+(g.bucket_min_chars)+'–'+(g.bucket_min_chars+duplicates.method.length_bucket_chars)+' chars</td>'+
+          '<td class="count">'+g.count+'</td>'+
+          '</tr>';
+      }
+      html+='</tbody></table></section>';
+    }else{
+      html+='<section><h2>Largest Duplicate Groups (sample)</h2><div class="note">No duplicates found in the sample — 0 of '+duplicates.sample_size+' chunks shared a prefix + length bucket.</div></section>';
+    }
+
+    $content.innerHTML=html;
+  }
+
+  loadStats();
+})();
+</script>
+</body>
+</html>

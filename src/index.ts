@@ -231,6 +231,9 @@ export default {
       if (path === '/canon/search' && req.method === 'GET') {
         return await handleCanonSearch(url, env);
       }
+      if (path === '/api/canon/stats' && req.method === 'GET') {
+        return await handleCanonStats(env);
+      }
 
       // ------------------------------------------------------------------
       // Forest — topology-augmented recall over the same canon
@@ -262,6 +265,9 @@ export default {
       }
       if (path === '/api/forest/refresh' && req.method === 'GET') {
         return await handleForestRefresh(url, env);
+      }
+      if (path === '/api/forest/marooned' && req.method === 'GET') {
+        return await handleForestMarooned(url, env);
       }
       // Embed-only bridge: the offline vectorizer embeds through this binding
       // instead of the REST API — worker bindings don't carry OAuth tokens
@@ -579,6 +585,129 @@ async function handleCanonSearch(url: URL, env: Env): Promise<Response> {
   if (!raw) results.sort((a, b) => b.score - a.score);
 
   return json({ ok: true, query: q, count: results.length, raw, results });
+}
+
+// ============================================================================
+//  Canon stats — corpus shape at a glance (toolyard #2)
+// ============================================================================
+//  GET /api/canon/stats reads the D1 mirror (forest_nodes — chunked
+//  identically to the Vectorize insert, so it IS the corpus census) plus
+//  Vectorize describe() for the embedding side. Two approximations, both
+//  documented in the payload so no dashboard mistakes them for exact:
+//
+//  EMBEDDING COVERAGE — upper bound. The binding exposes only a whole-index
+//    vectorCount (no per-id listing), and the index carries canonical
+//    path-style ids PLUS v2::hash duplicate vectors from re-embed passes.
+//    coverage = vectorCount / d1_chunks therefore overcounts the canonical
+//    share; a ratio > 1 means the dupes absorbed the slack, not "covered
+//    twice over". (The exact number is the build log's missing_from_index,
+//    which lives offline.)
+//
+//  DUPLICATE RATE — 500-chunk even-stride sample. Deterministic (ROW_NUMBER
+//    over ORDER BY id, stride = total/500), so repeat calls agree until the
+//    corpus changes. Two chunks count as putative duplicates when their
+//    trimmed 48-char prefixes match AND they land in the same 256-char
+//    length bucket. Exact-prefix matching is blind to divergent-prefix
+//    near-duplicates; at n=500 the binomial margin is ≈ ±2pp. >5% is a
+//    smell, not a verdict — that threshold only raises the page banner.
+
+const CANON_STATS_SAMPLE = 500;
+const CANON_STATS_PREFIX_CHARS = 48;
+const CANON_STATS_LEN_BUCKET = 256;
+const CANON_STATS_DUP_WARN = 0.05;
+
+async function handleCanonStats(env: Env): Promise<Response> {
+  try {
+    const [totals, dirs, sample, indexInfo] = await Promise.all([
+      env.DB.prepare('SELECT COUNT(*) AS chunks, COUNT(DISTINCT path) AS files FROM forest_nodes').first(),
+      env.DB.prepare(
+        `SELECT CASE WHEN path LIKE '%/%' THEN SUBSTR(path, 1, INSTR(path, '/') - 1) ELSE '(root)' END AS dir,
+                COUNT(*) AS chunks, COUNT(DISTINCT path) AS files
+         FROM forest_nodes GROUP BY dir ORDER BY chunks DESC`,
+      ).all(),
+      env.DB.prepare(
+        `WITH n AS (SELECT COUNT(*) AS total FROM forest_nodes),
+         numbered AS (
+           SELECT TRIM(SUBSTR(text, 1, ?)) AS prefix, LENGTH(text) AS len,
+                  ROW_NUMBER() OVER (ORDER BY id) AS rn
+           FROM forest_nodes
+         )
+         SELECT prefix, len FROM numbered, n
+         WHERE rn % MAX(1, CAST(n.total / ? AS INTEGER)) = 0`,
+      ).bind(CANON_STATS_PREFIX_CHARS, CANON_STATS_SAMPLE).all(),
+      env.CANON.describe().catch((e: any) => {
+        console.error(`canon describe failed: ${e?.message}`);
+        return null;
+      }),
+    ]);
+
+    const totalChunks = (totals?.chunks as number) || 0;
+    const distinctFiles = (totals?.files as number) || 0;
+    const directories = (dirs.results || []).map((r: any) => ({
+      dir: r.dir as string,
+      chunks: r.chunks as number,
+      files: r.files as number,
+    }));
+
+    const vectorCount = (indexInfo as VectorizeIndexInfo | null)?.vectorCount ?? null;
+    const approxCoverage = vectorCount != null && totalChunks > 0 ? Math.min(1, vectorCount / totalChunks) : null;
+
+    // Duplicate grouping over the sample: (trimmed prefix, length bucket).
+    const rows = (sample.results || []) as Array<{ prefix: string | null; len: number | null }>;
+    const groups = new Map<string, { prefix: string; bucket: number; count: number }>();
+    for (const r of rows) {
+      const prefix = (r.prefix || '').slice(0, CANON_STATS_PREFIX_CHARS);
+      const bucket = Math.floor((r.len || 0) / CANON_STATS_LEN_BUCKET);
+      const key = JSON.stringify([prefix, bucket]);
+      const g = groups.get(key);
+      if (g) g.count++;
+      else groups.set(key, { prefix, bucket, count: 1 });
+    }
+    const dupGroups = [...groups.values()].filter((g) => g.count > 1).sort((a, b) => b.count - a.count);
+    const dupChunks = dupGroups.reduce((sum, g) => sum + g.count, 0);
+    const sampleSize = rows.length;
+    const dupRate = sampleSize > 0 ? dupChunks / sampleSize : 0;
+
+    return json({
+      ok: true,
+      corpus: {
+        total_chunks: totalChunks,
+        distinct_files: distinctFiles,
+        directories,
+      },
+      embedding_coverage: {
+        d1_mirror_chunks: totalChunks,
+        vectorize_vector_count: vectorCount,
+        approx_coverage: approxCoverage,
+        approximation:
+          'upper bound — vectorCount includes v2::hash duplicate vectors alongside canonical path-style ids, and the binding exposes no per-id listing; ratio >1 means dupes absorbed the slack, not double coverage',
+      },
+      duplicates: {
+        sample_size: sampleSize,
+        sampled_of_total: totalChunks,
+        method: {
+          selection: `even rowid stride over ORDER BY id, deterministic, ≈${CANON_STATS_SAMPLE} chunks`,
+          matching: `exact trimmed ${CANON_STATS_PREFIX_CHARS}-char prefix + ${CANON_STATS_LEN_BUCKET}-char length bucket — divergent-prefix near-duplicates are invisible; binomial margin at n=${CANON_STATS_SAMPLE} ≈ ±2pp`,
+          length_bucket_chars: CANON_STATS_LEN_BUCKET,
+        },
+        duplicate_groups: dupGroups.length,
+        duplicate_chunks: dupChunks,
+        duplicate_rate: Math.round(dupRate * 10000) / 10000,
+        largest_group: dupGroups.length ? dupGroups[0].count : 0,
+        top_groups: dupGroups.slice(0, 5).map((g) => ({
+          prefix: g.prefix,
+          length_bucket: g.bucket,
+          bucket_min_chars: g.bucket * CANON_STATS_LEN_BUCKET,
+          count: g.count,
+        })),
+      },
+      warning: dupRate > CANON_STATS_DUP_WARN
+        ? `duplicate sample rate ${(dupRate * 100).toFixed(1)}% exceeds ${CANON_STATS_DUP_WARN * 100}% — see duplicates.duplicate_rate`
+        : null,
+    });
+  } catch (e: any) {
+    return json({ ok: false, error: `canon stats failed: ${e?.message}` }, 500);
+  }
 }
 
 // ============================================================================
@@ -996,6 +1125,62 @@ async function handleForestRefresh(url: URL, env: Env): Promise<Response> {
     return json(JSON.parse(latest.report_json as string));
   } catch (e: any) {
     return json({ ok: false, error: `refresh read failed: ${e?.message}` }, 500);
+  }
+}
+
+// ============================================================================
+//  Forest marooned — zero-incident-edge chunk rescuer (research/64 tool 1)
+// ============================================================================
+//  A marooned chunk is a forest_nodes row with no incident edge on EITHER
+//  side — LEFT JOIN forest_edges as src and as dst; both misses = marooned.
+//  Rescue is visibility only: no nodes or edges are written, ever. The Walk
+//  button on /forest/marooned.html links to /forest/?start=<id>, which drops
+//  the user into a walk that starts at the chunk, and the ordinary walk-log
+//  deepens real edges from there. Ranking is age then text richness; the
+//  table carries no created_ts, so age is insertion seniority (rowid, oldest
+//  first) — the honest proxy, stated in the payload. Capped at 50 by default;
+//  ?all=1 returns the full list for CLI triage.
+
+const FOREST_MAROONED_CAP = 50;
+
+async function handleForestMarooned(url: URL, env: Env): Promise<Response> {
+  const all = url.searchParams.get('all') === '1';
+  try {
+    // LIMIT -1 is SQLite's "no limit" — one prepared statement, both modes.
+    const rows = await env.DB
+      .prepare(
+        `SELECT n.id, n.path, n.chunk, n.text,
+                LENGTH(n.text) AS text_length,
+                n.rowid AS seniority
+         FROM forest_nodes n
+         LEFT JOIN forest_edges e_src ON e_src.src = n.id
+         LEFT JOIN forest_edges e_dst ON e_dst.dst = n.id
+         WHERE e_src.src IS NULL AND e_dst.dst IS NULL
+         ORDER BY n.rowid ASC, text_length DESC
+         LIMIT ?`,
+      )
+      .bind(all ? -1 : FOREST_MAROONED_CAP)
+      .all();
+    const marooned = (rows.results || []).map((r: any) => ({
+      id: r.id as string,
+      title: (r.path as string).slice(0, FOREST_TITLE_MAX),
+      path: r.path as string,
+      chunk: r.chunk as number,
+      text_length: r.text_length as number,
+      seniority: r.seniority as number,
+      text: r.text as string,
+    }));
+    return json({
+      ok: true,
+      count: marooned.length,
+      cap: all ? null : FOREST_MAROONED_CAP,
+      all,
+      age_basis: 'insertion seniority (rowid, oldest first) — forest_nodes carries no created_ts',
+      note: 'visibility only — no mutations; rescue = walk it (/forest/?start=<id>)',
+      marooned,
+    });
+  } catch (e: any) {
+    return json({ ok: false, error: `marooned read failed: ${e?.message}` }, 500);
   }
 }
 
