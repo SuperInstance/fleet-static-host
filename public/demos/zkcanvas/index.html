@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZkCanvas — Live Demos</title>
+<style>
+  :root{--bg:#0b0e12;--fg:#c9d4e0;--dim:#5c6a7a;--acc:#4fb3a9;--warn:#d9a441;--bad:#c95d5d;--seam:#8f6fd3}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 ui-monospace,Menlo,Consolas,monospace}
+  header{padding:2rem 2rem 1rem;border-bottom:1px solid #1c242e}
+  h1{margin:0;font-size:1.3rem;letter-spacing:.08em}
+  header p{color:var(--dim);margin:.4rem 0 0;max-width:70ch}
+  nav{display:flex;gap:.5rem;padding:1rem 2rem;border-bottom:1px solid #1c242e;flex-wrap:wrap}
+  nav a{color:var(--acc);text-decoration:none;padding:.35rem .8rem;border:1px solid #1c242e;border-radius:.3rem}
+  nav a:hover{border-color:var(--acc)}
+  main{padding:2rem;max-width:1100px;margin:0 auto}
+  h2{font-size:1rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-top:2rem}
+  .wall{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin:1rem 0}
+  .cell{border:1px solid #243040;border-radius:6px;padding:.6rem;min-height:110px;position:relative;cursor:pointer}
+  .cell .id{font-size:.7rem;color:var(--dim)}
+  .cell .val{font-size:1.15rem;margin-top:.3rem}
+  .cell .road{position:absolute;bottom:.4rem;right:.5rem;font-size:.6rem;color:var(--dim)}
+  .seambar{height:4px;border-radius:2px;margin-top:.5rem;background:#1c242e;overflow:hidden}
+  .seambar i{display:block;height:100%}
+  .lag{background:var(--acc)} .div{background:var(--warn)} .fork{background:var(--seam)}
+  .legend{display:flex;gap:1.2rem;color:var(--dim);font-size:.75rem;flex-wrap:wrap}
+  .legend b{color:var(--fg);font-weight:normal}
+  .tick-note{color:var(--dim);font-size:.78rem;min-height:1.2em;margin:.3rem 0 1rem}
+  table{border-collapse:collapse;width:100%;font-size:.85rem}
+  td,th{border:1px solid #1c242e;padding:.35rem .6rem;text-align:left}
+  th{color:var(--dim);font-weight:normal}
+  .frame{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;margin:1rem 0}
+  .byte{background:#141b24;border:1px solid #243040;border-radius:4px;padding:.45rem 0;text-align:center;font-size:.8rem}
+  .byte span{display:block;font-size:.55rem;color:var(--dim)}
+  .frame.magic{color:var(--acc)} .frame .kind{color:var(--warn)}
+  .frame .crc{color:var(--seam)}
+  .hexline{color:var(--dim);font-size:.8rem;word-break:break-all}
+  .ok{color:var(--acc)} .no{color:var(--bad)}
+  footer{padding:2rem;color:var(--dim);font-size:.75rem;border-top:1px solid #1c242e;margin-top:3rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>ZKCANVAS · LIVE DEMOS</h1>
+  <p>The charter, running. Egocentric 0/0/0 origin, link-as-subtext (the road), nested universes by portal, department shells, and the cell-is-an-idea — each demonstrated with working code, not prose. Everything below runs client-side; the doctrine is the app.</p>
+</header>
+<nav>
+  <a href="#wall">seam wall</a>
+  <a href="#wire">quiltwire lab</a>
+  <a href="#roads">road ledger</a>
+  <a href="wall.html">expansion: the open seam (claude)</a>
+  <a href="navigation.html">expansion: walk addresses (kimi)</a>
+  <a href="wirelab.html">expansion: wire lab (opencode)</a>
+</nav>
+<main>
+
+<h2 id="wall">The Seam Wall — three disagreement classes, live</h2>
+<p class="tick-note" id="ticknote">—</p>
+<div class="wall" id="wall"></div>
+<div class="legend">
+  <div><i class="lag" style="display:inline-block;width:10px;height:10px;border-radius:2px"></i> <b>1s lag</b> — tempo, ignore</div>
+  <div><i class="div" style="display:inline-block;width:10px;height:10px;border-radius:2px"></i> <b>1h diverged</b> — search, work it</div>
+  <div><i class="fork" style="display:inline-block;width:10px;height:10px;border-radius:2px"></i> <b>identity fork</b> — kept open on purpose</div>
+</div>
+<p class="tick-note">Click a cell to read its seam. The wall never auto-reconciles: the seam is the product.</p>
+
+<h2 id="wire">QuiltWire v0 — 16 bytes, decoded live</h2>
+<div class="frame" id="frame"></div>
+<div class="hexline" id="hexline"></div>
+<table id="frametable"></table>
+<p class="tick-note">Absent by design: timestamps, sender self-reports, routing headers. Subtext is observed, not declared. <button id="reframe" style="background:none;border:1px solid #243040;color:var(--acc);border-radius:4px;cursor:pointer;padding:.2rem .7rem">new random frame</button></p>
+
+<h2 id="roads">Road ledger — arrival stamps from the live soak</h2>
+<table>
+  <tr><th>road</th><th>meaning</th><th>in the window</th></tr>
+  <tr><td>human</td><td>manual shell, someone's hands</td><td class="ok">stamped</td></tr>
+  <tr><td>local</td><td>the gateway's own tmux/cron loop</td><td class="ok">stamped</td></tr>
+  <tr><td>rest</td><td>HTTPS responses, per endpoint+model</td><td class="ok">stamped</td></tr>
+  <tr><td>tcp</td><td>raw sockets, future lanes</td><td>reserved</td></tr>
+  <tr><td>esp-now / ble / wifi</td><td>the Rung-5 devkit's radios</td><td>silicon-blocked</td></tr>
+</table>
+<p class="tick-note">H-ROAD-0: 72h coverage clock, closes 2026-08-31 15:06 AKDT. Unknown is honest; guessed is not.</p>
+
+</main>
+<footer>
+  SuperInstance · zkcanvas-visions rounds 1–3 · walks/2 · QuiltWire v0 · the seam is the product
+</footer>
+
+<script>
+// ---- seam wall: three classes, distinct renderings, zero auto-reconciliation
+const CELLS=[
+ {id:"fuel-dock",cls:"lag", v:()=>(20+Math.sin(Date.now()/900)*2).toFixed(1)+"°", note:"1s behind — ghost offset, tempo not truth"},
+ {id:"eileen",cls:"div", v:()=>(9+Math.sin(Date.now()/4000)*3).toFixed(1)+" kn", note:"1h diverged — dashed prediction vs solid ticks; work the seam"},
+ {id:"portal:esp32-01",cls:"fork", v:()=>"two truths", note:"unmergeable since the storm — agree set empty from genesis. Kept open ON PURPOSE: the wet shed's tape is the only firsthand account of the flood"},
+ {id:"wet-shed",cls:"fork", v:()=>"two truths", note:"the other face of the fork — both renderings true, no evidence can resolve identity"},
+ {id:"harbor-gate",cls:"lag", v:()=>"asking…", note:"1s lag — the gate's question arrives a beat after the truck"},
+ {id:"vigil-berth",cls:"div", v:()=>(0.2+Math.random()*0.1).toFixed(2)+" m", note:"1h diverged — a vigil slowing is data, not error"},
+];
+const wall=document.getElementById('wall'), note=document.getElementById('ticknote');
+wall.innerHTML=CELLS.map(c=>`<div class="cell" data-i="${CELLS.indexOf(c)}">
+ <div class="id">${c.id}</div><div class="val" data-v></div>
+ <div class="seambar"><i class="${c.cls}" style="width:${c.cls==='fork'?'100':c.cls==='div'?'62':'30'}%"></i></div>
+ <div class="road">${c.cls==='lag'?'road: local':c.cls==='div'?'road: ble':'road: ×2'}</div></div>`).join('');
+function paint(){
+ document.querySelectorAll('.cell').forEach(el=>{el.querySelector('[data-v]').textContent=CELLS[el.dataset.i].v()});
+}
+wall.addEventListener('click',e=>{const el=e.target.closest('.cell'); if(el) note.textContent=CELLS[el.dataset.i].note;});
+paint(); setInterval(paint,1000);
+
+// ---- quiltwire v0: build + decode a real 16-byte frame
+// layout: magic 'Q' ver kind cell_id | seq u16le | tick u32le | value f32le | crc16-ccitt
+function crc16(b){let c=0xFFFF;for(const x of b.slice(0,14)){c^=x<<8;for(let i=0;i<8;i++)c=c&0x8000?(c<<1)^0x1021:c<<1;c&=0xFFFF}return c}
+const KINDS=['TICK','DELTA','ALARM','LINKMETA','ACK'];
+function makeFrame(){
+ const b=new Uint8Array(16);
+ b[0]=0x51;b[1]=0x01;b[2]=Math.floor(Math.random()*5);b[3]=Math.floor(Math.random()*256);
+ const seq=Math.floor(Math.random()*65536),tick=Math.floor(Math.random()*2**32),val=Math.random()*40-5;
+ const dv=new DataView(b.buffer);dv.setUint16(4,seq,true);dv.setUint32(6,tick,true);dv.setFloat32(10,val,true);
+ dv.setUint16(14,crc16(b),false);
+ return b;
+}
+const FIELDMAP=[
+ {n:'magic 0x51 "Q"',i:[0],cls:'magic'},{n:'version',i:[1]},{n:'kind',i:[2],cls:'kind'},{n:'cell_id',i:[3]},
+ {n:'seq u16',i:[4,5]},{n:'tick u32',i:[6,7,8,9]},{n:'value f32',i:[10,11,12,13]},{n:'crc16',i:[14,15],cls:'crc'}
+];
+const frameEl=document.getElementById('frame'),hexEl=document.getElementById('hexline'),tbl=document.getElementById('frametable');
+function showFrame(b){
+ frameEl.innerHTML=b.map((x,i)=>{
+  const f=FIELDMAP.find(f=>f.i.includes(i));
+  return `<div class="byte ${f?f.cls||'':''}">${x.toString(16).padStart(2,'0')}<span>${f?f.n:'·'}</span></div>`}).join('');
+ hexEl.textContent='hex: 0x'+[...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+ const dv=new DataView(b.buffer),crcOK=crc16(b)===dv.getUint16(14,false);
+ tbl.innerHTML=`<tr><th>kind</th><td>${KINDS[b[2]]}</td><th>cell_id</th><td>${b[3]}</td></tr>
+ <tr><th>seq</th><td>${dv.getUint16(4,true)}</td><th>tick</th><td>${dv.getUint32(6,true)}</td></tr>
+ <tr><th>value</th><td>${dv.getFloat32(10,true).toFixed(3)}</td><th>CRC16-CCITT</th><td class="${crcOK?'ok':'no'}">${crcOK?'OK — frame accepts itself':'FAIL'}</td></tr>`;
+}
+showFrame(makeFrame());
+document.getElementById('reframe').onclick=()=>showFrame(makeFrame());
+</script>
+</body>
+</html>

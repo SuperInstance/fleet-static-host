@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walk Addresses — Navigation Department Demo</title>
+<style>
+  :root{
+    --bg:#0b0e12; --panel:#11161d; --panel2:#151c26; --line:#232c3a;
+    --ink:#d6dde8; --dim:#7c8798; --faint:#4a5568;
+    --accent:#5ec8ff; --portal:#b78bff; --warn:#ffb454; --bad:#ff6b6b;
+    --ok:#58d68d; --origin:#ffd166;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.5 "SF Mono","Cascadia Code",Consolas,monospace;}
+  header{padding:18px 22px 10px;border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:18px;font-weight:600;color:var(--accent)}
+  header p{margin:4px 0 0;color:var(--dim);max-width:1100px}
+  .wrap{display:flex;gap:16px;padding:16px 22px;align-items:flex-start}
+  main{flex:1;min-width:0}
+  aside{width:320px;flex:none;background:var(--panel);border:1px solid var(--line);
+        border-radius:10px;padding:14px 16px;position:sticky;top:16px}
+  aside h2{margin:0 0 4px;font-size:13px;color:var(--ok);letter-spacing:.08em}
+  aside .sub{color:var(--dim);font-size:12px;margin-bottom:10px}
+  .inv{display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12px}
+  .inv:first-of-type{border-top:none}
+  .inv .tick{color:var(--ok);flex:none}
+  .inv b{color:var(--ink)}
+  .inv span{color:var(--dim)}
+
+  .univrow{display:flex;gap:16px;flex-wrap:wrap}
+  .universe{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+            padding:14px;position:relative}
+  .universe h3{margin:0 0 2px;font-size:13px;color:var(--accent)}
+  .universe .uaddr{font-size:12px;color:var(--portal);min-height:18px;margin-bottom:8px}
+  .universe.home .uaddr{color:var(--origin)}
+  .grid{display:grid;gap:8px;position:relative}
+  .cell{width:118px;height:96px;background:var(--panel2);border:1px solid var(--line);
+        border-radius:8px;padding:7px 9px;cursor:pointer;position:relative;
+        transition:border-color .2s, box-shadow .2s;user-select:none}
+  .cell:hover{border-color:var(--accent)}
+  .cell .cid{font-weight:700;font-size:15px}
+  .cell .role{color:var(--faint);font-size:11px}
+  .cell .addr{margin-top:6px;font-size:12px;color:var(--accent);word-break:break-all}
+  .cell.portal{border-color:var(--portal)}
+  .cell.portal .cid{color:var(--portal)}
+  .cell.origin{border-color:var(--origin);box-shadow:0 0 14px rgba(255,209,102,.25)}
+  .cell.origin .addr{color:var(--origin)}
+  .cell.origin .cid::after{content:" ◉";color:var(--origin)}
+  .cell .origtag{position:absolute;top:6px;right:8px;font-size:10px;color:var(--origin);
+                 letter-spacing:.1em}
+  .cell.onpath{border-color:var(--accent);box-shadow:0 0 10px rgba(94,200,255,.35)}
+  .cell.crossing{animation:portalflash .5s ease-in-out 3}
+  @keyframes portalflash{50%{box-shadow:0 0 22px rgba(183,139,255,.9);border-color:#fff}}
+
+  #walker{position:fixed;width:16px;height:16px;border-radius:50%;
+          background:var(--origin);box-shadow:0 0 12px var(--origin);
+          z-index:50;pointer-events:none;transition:left .45s ease,top .45s ease;
+          transform:translate(-50%,-50%);display:none}
+
+  .readout{margin-top:14px;background:var(--panel);border:1px solid var(--line);
+           border-radius:10px;padding:12px 14px}
+  .readout .full{font-size:15px;min-height:24px}
+  .readout .seg{padding:1px 4px;border-radius:4px}
+  .readout .seg.done{color:var(--faint);text-decoration:line-through}
+  .readout .seg.active{background:rgba(94,200,255,.15);color:var(--accent)}
+  .readout .op{color:var(--portal);font-weight:700;padding:0 3px}
+  .readout .log{color:var(--dim);font-size:12px;margin-top:6px;min-height:18px}
+  .readout .log .hl{color:var(--portal)}
+  .controls{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+  button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+         font:inherit;font-size:12px;padding:7px 12px;border-radius:6px;cursor:pointer}
+  button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  button:disabled{opacity:.4;cursor:default}
+
+  .faces{margin-top:16px;background:var(--panel);border:1px solid var(--line);
+         border-radius:10px;padding:14px}
+  .faces h3{margin:0 0 2px;font-size:13px;color:var(--portal)}
+  .faces .note{color:var(--dim);font-size:12px;margin-bottom:10px}
+  .facegrid{display:flex;gap:14px;flex-wrap:wrap}
+  .face{flex:1;min-width:280px;background:var(--panel2);border:1px solid var(--line);
+        border-radius:8px;padding:10px 12px}
+  .face h4{margin:0 0 6px;font-size:12px}
+  .face.out h4{color:var(--accent)}
+  .face.in h4{color:var(--portal)}
+  .stamp{font-size:11px;color:var(--dim);margin-bottom:8px}
+  .stamp b{color:var(--ink)}
+  .frow{display:flex;justify-content:space-between;padding:3px 0;
+        border-top:1px solid var(--line);font-size:12px}
+  .frow .k{color:var(--dim)}
+  .frow.disagree{background:rgba(255,180,84,.08)}
+  .frow.disagree .v{color:var(--warn);font-weight:700}
+  .frow.agree .v{color:var(--ok)}
+  .seamline{margin-top:10px;font-size:12px;color:var(--warn)}
+  .seamline b{letter-spacing:.05em}
+  .legend{color:var(--dim);font-size:12px;margin:10px 0 0}
+  .legend code{color:var(--accent)}
+  kbd{background:var(--panel2);border:1px solid var(--line);border-radius:4px;
+      padding:0 5px;font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <h1>WALK ADDRESSES — an address is a walk, not a point</h1>
+  <p>No grid, no coordinates. Every label below is a <b>walk</b> spoken by whichever cell is
+     <span style="color:var(--origin)">◉ ORIGIN</span> — signed step-triples <code>u/v/w</code>,
+     joined by portal crossings <code>:</code> (descend) and <code>^</code> (ascend).
+     Click any cell to re-originate the universe. Everything recomputes; nothing is stored as a coordinate.</p>
+</header>
+
+<div class="wrap">
+<main>
+  <div class="univrow">
+    <section class="universe" id="u0box">
+      <h3>U0 — the laptop quilt</h3>
+      <div class="uaddr" id="u0addr"></div>
+      <div class="grid" id="u0grid" style="grid-template-columns:repeat(4,118px)"></div>
+    </section>
+    <section class="universe" id="u1box">
+      <h3>U1 — the ESP32 web <span style="color:var(--portal)">⧉ portal:esp32-01</span></h3>
+      <div class="uaddr" id="u1addr"></div>
+      <div class="grid" id="u1grid" style="grid-template-columns:repeat(2,118px)"></div>
+    </section>
+  </div>
+
+  <div class="readout">
+    <div class="full" id="addrline"><span style="color:var(--dim)">walk a journey below — or click any cell to re-originate</span></div>
+    <div class="log" id="jlog"></div>
+    <div class="controls">
+      <button id="btnDown">▶ Journey: L → S2&nbsp; <code>2/0/0 : 1/0/0</code></button>
+      <button id="btnUp">▶ Journey: S2 → L&nbsp; <code>-1/0/0 ^ -2/0/0</code> (the exact reverse)</button>
+      <button id="btnReset">↺ reset origin to L</button>
+    </div>
+  </div>
+
+  <div class="faces">
+    <h3>⧉ portal:esp32-01 — the two-faced portal cell (P ↔ U)</h3>
+    <div class="note">Both faces persist, both attributed, both stamped (A10). The seam is a diff — derived, never authoritative. Rendering never overwrites.</div>
+    <div class="facegrid">
+      <div class="face out" id="faceOut"></div>
+      <div class="face in" id="faceIn"></div>
+    </div>
+    <div class="seamline" id="seamline"></div>
+    <div class="controls" style="margin-top:10px">
+      <button id="btnLag">make it a lag seam (~1s de-sync)</button>
+      <button id="btnOpen">make it an open seam (~40m de-sync)</button>
+      <button id="btnTick">+30s of silence (ages advance)</button>
+    </div>
+    <p class="legend">face.out is spoken by <code>P</code> in U0 (the laptop's deflated summary);
+    face.in is spoken by <code>U</code> in U1 (carried up over the link). From inside U1, face.out is
+    <i>a rumor about itself</i>. Navigation is unaffected by disagreement — you can still route to
+    <code>S2</code> through a portal whose faces are at war (A8, A9).</p>
+  </div>
+</main>
+
+<aside>
+  <h2>✓ INVARIANTS — never violated</h2>
+  <div class="sub">checked continuously by this demo; a violation would turn a tick red. None ever has.</div>
+  <div id="invlist"></div>
+</aside>
+</div>
+
+<div id="walker"></div>
+
+<script>
+"use strict";
+/* ---------- the universes: adjacency only, no coordinates ---------- */
+// u = +1 rightward, v = +1 upward, w unused (2-D quilts keep w=0 forever).
+const U0 = {
+  name:"U0",
+  cells:{ L:{role:"laptop shell / ledger"}, N1:{role:"relay"}, P:{role:"portal tile — the whole ESP32 web, deflated"}, N2:{role:"relay"} },
+  edges:[ ["L","N1",[1,0,0]], ["N1","P",[1,0,0]], ["P","N2",[1,0,0]] ]
+};
+const U1 = {
+  name:"U1",
+  cells:{ U:{role:"uplink radio — portal pointing out"}, S1:{role:"temperature"}, S2:{role:"humidity"}, S3:{role:"motion"} },
+  edges:[ ["U","S2",[1,0,0]], ["U","S1",[0,1,0]], ["S2","S3",[0,1,0]], ["S1","S3",[1,0,0]] ]
+};
+const PORTAL = { id:"portal:esp32-01", out:"P", in:"U" };  // one binding, two cells (A6)
+
+/* layout for drawing only — drawing is not addressing */
+const POS = { U0:{L:[0,1],N1:[1,1],P:[2,1],N2:[3,1]}, U1:{U:[0,1],S2:[1,1],S1:[0,0],S3:[1,0]} };
+
+let origin = {u:"U0", c:"L"};
+let busy = false;
+
+const neg = s => [-s[0],-s[1],-s[2]];
+const add = (a,b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
+const fmt = s => `${s[0]}/${s[1]}/${s[2]}`;
+
+function adj(u){
+  const m = {};
+  for(const c in u.cells) m[c]=[];
+  for(const [a,b,s] of u.edges){ m[a].push([b,s]); m[b].push([a,neg(s)]); }
+  return m;
+}
+const ADJ = { U0:adj(U0), U1:adj(U1) };
+
+/* shortest walk within one universe (canonical form — for THIS origin's bookkeeping only) */
+function walk(u, from, to){
+  if(from===to) return [0,0,0];
+  const q=[[from,[0,0,0]]], seen={[from]:1};
+  while(q.length){
+    const [c,s]=q.shift();
+    for(const [n,st] of ADJ[u][c]){
+      const ns=add(s,st);
+      if(n===to) return ns;
+      if(!seen[n]){ seen[n]=1; q.push([n,ns]); }
+    }
+  }
+  return null;
+}
+
+/* full address string of target as spoken by origin — may cross the portal */
+function addressOf(tu, tc){
+  if(tu===origin.u){
+    const s = walk(origin.u, origin.c, tc);
+    return { text: fmt(s), cross:false, pre:s, post:null };
+  }
+  if(origin.u==="U0"){            // descend: origin→P, then :, then U→target
+    const a = walk("U0", origin.c, PORTAL.out);
+    const b = walk("U1", PORTAL.in, tc);
+    const pre = (a[0]||a[1]||a[2]) ? fmt(a)+" " : "";
+    return { text: pre+": "+fmt(b), cross:true, op:":", pre:a, post:b };
+  } else {                        // ascend: origin→U, then ^, then P→target
+    const a = walk("U1", origin.c, PORTAL.in);
+    const b = walk("U0", PORTAL.out, tc);
+    const pre = (a[0]||a[1]||a[2]) ? fmt(a)+" " : "";
+    return { text: pre+"^ "+fmt(b), cross:true, op:"^", pre:a, post:b };
+  }
+}
+
+/* ---------- rendering ---------- */
+const grids = { U0:document.getElementById("u0grid"), U1:document.getElementById("u1grid") };
+const cellEls = {};
+
+function buildGrids(){
+  for(const uname of ["U0","U1"]){
+    const u = uname==="U0"?U0:U1, g=grids[uname];
+    g.innerHTML="";
+    for(const cid in u.cells){
+      const [x,y]=POS[uname][cid];
+      const el=document.createElement("div");
+      const isPortal = (uname==="U0"&&cid===PORTAL.out)||(uname==="U1"&&cid===PORTAL.in);
+      el.className="cell"+(isPortal?" portal":"");
+      el.style.gridColumn=x+1; el.style.gridRow=y+1;
+      el.innerHTML=`<div class="cid">${cid}</div><div class="role">${u.cells[cid].role}</div><div class="addr"></div>`;
+      el.onclick=()=>{ if(!busy) setOrigin(uname,cid); };
+      g.appendChild(el);
+      cellEls[uname+":"+cid]=el;
+    }
+  }
+}
+
+function render(){
+  const u0box=document.getElementById("u0box"), u1box=document.getElementById("u1box");
+  // A universe seen from outside is one tile; seen from inside it is home — no address (§3).
+  document.getElementById("u0addr").textContent =
+    origin.u==="U0" ? "home — it has no internal address; it IS the origin"
+                    : `from ${origin.c}: the laptop is ${addressOf("U0","L").text}  (one uplink tile, ${PORTAL.id})`;
+  document.getElementById("u1addr").textContent =
+    origin.u==="U1" ? "home — it has no internal address; it IS the origin"
+                    : `from ${origin.c}: the entire web is one tile at ${addressOf("U1",PORTAL.in).text.replace(/\s*:\s*0\/0\/0/,"")}`;
+  u0box.classList.toggle("home", origin.u==="U0");
+  u1box.classList.toggle("home", origin.u==="U1");
+
+  for(const uname of ["U0","U1"]){
+    for(const cid in (uname==="U0"?U0:U1).cells){
+      const el=cellEls[uname+":"+cid], a=el.querySelector(".addr");
+      el.classList.remove("origin","onpath");
+      el.querySelector(".origtag")?.remove();
+      if(uname===origin.u && cid===origin.c){
+        el.classList.add("origin");
+        // The ORIGIN cell: no coordinate readout. 0/0/0 is not a place — it is whoever is asking (A1).
+        a.innerHTML = "ORIGIN<br>self — no readout";
+        const t=document.createElement("div"); t.className="origtag"; t.textContent="0/0/0 ≡ self";
+        el.appendChild(t);
+      } else {
+        a.textContent = addressOf(uname,cid).text;
+      }
+    }
+  }
+}
+
+function setOrigin(u,c){
+  origin={u,c};
+  document.getElementById("addrline").innerHTML =
+    `<span style="color:var(--dim)">re-originated: every address is now spoken by</span> <b style="color:var(--origin)">${c}</b>`;
+  document.getElementById("jlog").textContent = "The origin is not a place; it is whoever is asking (A1, A2).";
+  render();
+}
+
+/* ---------- walker animation ---------- */
+const walker = document.getElementById("walker");
+function cellCenter(u,c){
+  const r=cellEls[u+":"+c].getBoundingClientRect();
+  return [r.left+r.width/2+scrollX, r.top+r.height/2+scrollY];
+}
+function moveWalker(u,c){
+  const [x,y]=cellCenter(u,c);
+  walker.style.display="block";
+  walker.style.left=x+"px"; walker.style.top=y+"px";
+}
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+function pathCells(u, from, to){           // ordered cell list of a within-universe walk
+  const path=[[from,[0,0,0]]], seen={[from]:1}, q=[[from,[0,0,0],[from]]];
+  while(q.length){
+    const [c,s,p]=q.shift();
+    if(c===to) return p;
+    for(const [n,st] of ADJ[u][c]) if(!seen[n]){ seen[n]=1; q.push([n,add(s,st),[...p,n]]); }
+  }
+  return [from];
+}
+
+async function flashPortal(u,c){
+  const el=cellEls[u+":"+c];
+  el.classList.add("crossing"); await sleep(1500); el.classList.remove("crossing");
+}
+
+async function animateJourney(fromU, fromC, toU, toC, addr, narrative){
+  busy=true; setButtons(true);
+  setOrigin(fromU, fromC);
+  const line=document.getElementById("addrline"), log=document.getElementById("jlog");
+  const parts = addr.split(/([:^])/).filter(s=>s.trim().length);
+  line.innerHTML = `<b style="color:var(--origin)">${fromC}:</b> ` + parts.map(p=>{
+    if(p===":"||p==="^") return `<span class="op">${p===":"?" : descend":" ^ ascend"}</span>`;
+    return `<span class="seg" data-seg="${p.trim()}">${p.trim()}</span>`;
+  }).join(" ");
+  log.textContent = narrative[0];
+  moveWalker(fromU, fromC);
+  await sleep(600);
+
+  let curU=fromU, curC=fromC;
+  const crosses = fromU!==toU;
+  const legs = crosses
+    ? (fromU==="U0"
+        ? [[fromU, fromC, PORTAL.out], [toU, PORTAL.in, toC]]
+        : [[fromU, fromC, PORTAL.in],  [toU, PORTAL.out, toC]])
+    : [[fromU, fromC, toC]];
+
+  for(let leg=0; leg<legs.length; leg++){
+    const [u,a,b]=legs[leg];
+    const segs=line.querySelectorAll(".seg");
+    if(segs[leg]) segs[leg].classList.add("active");
+    const cells=pathCells(u,a,b);
+    for(let i=1;i<cells.length;i++){
+      const step = walk(u, cells[i-1], cells[i]);
+      log.innerHTML = `${u} · ${cells[i-1]} takes step <b style="color:var(--accent)">${fmt(step)}</b> → ${cells[i]} &nbsp;<span style="color:var(--faint)">(steps add within one segment — A3)</span>`;
+      cellEls[u+":"+cells[i]].classList.add("onpath");
+      moveWalker(u, cells[i]);
+      await sleep(560);
+    }
+    if(segs[leg]){ segs[leg].classList.remove("active"); segs[leg].classList.add("done"); }
+    curU=u; curC=b;
+
+    if(leg<legs.length-1){  // portal crossing: re-origin (A7)
+      const fromP = fromU==="U0" ? PORTAL.out : PORTAL.in;
+      const toP   = fromU==="U0" ? PORTAL.in  : PORTAL.out;
+      log.innerHTML = `<span class="hl">crossing ${PORTAL.id} — the frame is discarded; only the remaining walk crosses (A4)…</span>`;
+      await flashPortal(fromU, fromP);
+      moveWalker(toU, toP);
+      await flashPortal(toU, toP);
+      log.innerHTML = `<span class="hl">re-origin: ${toP} is now 0/0/0 — old coordinates do not carry through (A7). Continue the remaining segment.</span>`;
+      await sleep(900);
+    }
+  }
+  const back = fromU==="U0" ? "S2: L = -1/0/0 ^ -2/0/0" : "L: S2 = 2/0/0 : 1/0/0";
+  log.innerHTML = `arrived at <b style="color:var(--origin)">${toC}</b>. The way home is <b style="color:var(--accent)">${back}</b> — reverse the order, negate every segment, swap : ↔ ^ (A5). Nobody ever held a global coordinate.`;
+  busy=false; setButtons(false);
+}
+
+function setButtons(d){
+  for(const id of ["btnDown","btnUp","btnReset"]) document.getElementById(id).disabled=d;
+}
+
+/* ---------- the two faces ---------- */
+const faces = {
+  out:{ stamp:{who:"L", seq:41, age:8},
+        rows:{ members:"3", "S1 temp":"ok", "S2 hum":"ok", "S3 mot":"ok", link:"wifi + bt" } },
+  in:{  stamp:{who:"U", seq:17, age:2400},
+        rows:{ members:"3", "S1 temp":"ok", "S2 hum":"NO READING 40m — brownout suspected",
+               "S3 mot":"event burst, 212/hr", link:"bt only — wifi dropped 03:12" } }
+};
+const FACE_KEYS = ["members","S1 temp","S2 hum","S3 mot","link"];
+const agreeVal = { members:"3", "S1 temp":"ok" };
+
+function ageStr(s){
+  if(s<60) return s+"s";
+  if(s<3600) return Math.round(s/60)+"m";
+  return (s/3600).toFixed(1)+"h";
+}
+function renderFaces(){
+  for(const side of ["out","in"]){
+    const f=faces[side], el=document.getElementById(side==="out"?"faceOut":"faceIn");
+    const other=faces[side==="out"?"in":"out"];
+    let rows="";
+    for(const k of FACE_KEYS){
+      const same = f.rows[k]===other.rows[k] || agreeVal[k]===f.rows[k]&&agreeVal[k]===other.rows[k];
+      rows+=`<div class="frow ${f.rows[k]===other.rows[k]?"agree":"disagree"}">
+               <span class="k">${k}</span><span class="v">${f.rows[k]}</span></div>`;
+    }
+    el.innerHTML=`<h4>face.${side} ${side==="out"?"— U1 rendered from U0":"— U1 rendering itself"}</h4>
+      <div class="stamp">stamped <b>${f.stamp.who}:seq${f.stamp.seq}</b> · age <b>${ageStr(f.stamp.age)}</b></div>${rows}`;
+  }
+  const dAge = Math.abs(faces.in.stamp.age - faces.out.stamp.age);
+  const contentDiverges = FACE_KEYS.some(k=>faces.out.rows[k]!==faces.in.rows[k]);
+  const seam=document.getElementById("seamline");
+  if(!contentDiverges){
+    seam.innerHTML=`<b>seam:</b> LAG — same shape, offset in time (stamps Δ${ageStr(dAge)}). Render as ghost/offset; no content disagreement.`;
+    seam.style.color="var(--dim)";
+  } else {
+    seam.innerHTML=`<b>seam:</b> OPEN — disagree: S2.health out=ok | in=dead(${ageStr(faces.in.stamp.age)}) · link out=wifi+bt | in=bt-only · S3.rate out=quiet | in=burst. Stamps: out ${ageStr(faces.out.stamp.age)} | in ${ageStr(faces.in.stamp.age)}. Verdict: no merge proposed, none needed yet.`;
+    seam.style.color="var(--warn)";
+  }
+}
+
+document.getElementById("btnLag").onclick=()=>{
+  faces.in.rows = {...faces.out.rows};
+  faces.in.stamp.age = faces.out.stamp.age + 1; faces.in.stamp.seq = faces.out.seq||41;
+  renderFaces();
+};
+document.getElementById("btnOpen").onclick=()=>{
+  faces.in.rows = { members:"3", "S1 temp":"ok", "S2 hum":"NO READING 40m — brownout suspected",
+                    "S3 mot":"event burst, 212/hr", link:"bt only — wifi dropped 03:12" };
+  faces.in.stamp = {who:"U", seq:17, age:2400};
+  faces.out.stamp = {who:"L", seq:41, age:8};
+  renderFaces();
+};
+document.getElementById("btnTick").onclick=()=>{
+  faces.out.stamp.age+=30; faces.in.stamp.age+=30; faces.out.stamp.seq++;
+  renderFaces();
+};
+
+/* ---------- invariant checklist ---------- */
+const INVARIANTS = [
+ ["A1","Self-origin","every cell c: c = 0/0/0 — the origin is whoever is asking"],
+ ["A2","Relativity","an address is meaningless without its origin"],
+ ["A3","Local arithmetic","steps add within one segment only"],
+ ["A4","No cross-frame arithmetic","coordinates never add across : or ^ — only the walk crosses"],
+ ["A5","Reversibility","B:A = reverse(A:B) — negate, reorder, swap : ↔ ^"],
+ ["A6","Portal pairing","one binding, two cells, one portal-id; P : ^ = P (on cell-id)"],
+ ["A7","Re-origin on crossing","the landing cell is 0/0/0 for the next segment"],
+ ["A8","Identity ≠ address","ids are stable; step-triples are per-origin routes, never names"],
+ ["A9","Adjacency sufficiency","own id + unit steps + portal bindings route anywhere reachable"],
+ ["A10","Disagreement persistence","both faces, both stamps, always — convergence never forced"],
+];
+document.getElementById("invlist").innerHTML = INVARIANTS.map(([id,t,d])=>
+  `<div class="inv"><span class="tick">✓</span><div><b>${id} ${t}.</b> <span>${d}</span></div></div>`
+).join("");
+
+/* ---------- journeys ---------- */
+document.getElementById("btnDown").onclick=()=>!busy&&animateJourney("U0","L","U1","S2","2/0/0 : 1/0/0",
+  ["L wants S2. L has no map — only its id, its neighbor steps, and one portal binding (A9). Walk it."]);
+document.getElementById("btnUp").onclick=()=>!busy&&animateJourney("U1","S2","U0","L","-1/0/0 ^ -2/0/0",
+  ["S2 answers along reverse of the path it was reached by — the reversal rule survives portals unchanged (§1.4, A5)."]);
+document.getElementById("btnReset").onclick=()=>!busy&&setOrigin("U0","L");
+
+buildGrids(); render(); renderFaces();
+</script>
+</body>
+</html>
