@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forest Walk Analytics</title>
+<style>
+  :root{--bg:#0b0e12;--fg:#c9d4e0;--dim:#5c6a7a;--acc:#4fb3a9;--warn:#d9a441;--bad:#c95d5d;--line:#1c242e;--card:#141b24}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 ui-monospace,Menlo,Consolas,monospace}
+  header{padding:2rem 2rem 1rem;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:1.3rem;letter-spacing:.08em}
+  h1 span{color:var(--acc)}
+  header p{color:var(--dim);margin:.4rem 0 0;max-width:78ch}
+  main{padding:1.5rem 2rem 2rem;max-width:1280px;margin:0 auto}
+  .headline{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
+  .stat{border:1px solid var(--line);border-radius:.4rem;background:var(--card);padding:1rem;text-align:center}
+  .stat .label{color:var(--dim);font-size:.75rem;letter-spacing:.1em;margin-bottom:.3rem}
+  .stat .value{font-size:1.8rem;font-weight:bold;color:var(--acc)}
+  .banner{border:2px solid var(--bad);border-radius:.4rem;background:rgba(201,93,93,.08);padding:1rem;margin-bottom:2rem;color:var(--bad)}
+  .banner .title{font-weight:bold;margin-bottom:.5rem}
+  .banner .subtitle{color:var(--fg);font-size:.85rem}
+  section{margin-bottom:2.5rem}
+  section h2{font-size:.85rem;letter-spacing:.12em;color:var(--dim);margin:0 0 1rem;border-bottom:1px solid var(--line);padding-bottom:.4rem;text-transform:uppercase}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;padding:.5rem 0;font-size:.8rem;letter-spacing:.1em;color:var(--dim);border-bottom:1px solid var(--line)}
+  td{padding:.5rem 0;border-bottom:1px solid #243040;font-size:.85rem}
+  tr:hover{background:rgba(79,179,169,.04)}
+  .edge-id{color:var(--acc);word-break:break-all;max-width:300px}
+  .edge-id:hover{cursor:pointer;text-decoration:underline}
+  .count{text-align:right;font-weight:bold;color:var(--acc)}
+  .chart{margin-bottom:1rem;padding:1rem;background:var(--card);border:1px solid var(--line);border-radius:.4rem}
+  .chart svg{display:block;margin:0 auto;max-width:100%}
+  .loading{color:var(--dim);padding:2rem;text-align:center}
+  .error{color:var(--bad);padding:1rem;background:rgba(201,93,93,.08);border:1px solid var(--bad);border-radius:.4rem;margin-bottom:1rem}
+  footer{padding:2rem;color:var(--dim);font-size:.75rem;border-top:1px solid var(--line);margin-top:3rem}
+  footer a{color:var(--acc);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  @media (max-width:900px){
+    main{padding:1rem}
+    .headline{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+    .stat{padding:.7rem}
+    .stat .value{font-size:1.4rem}
+    .edge-id{max-width:150px}
+    table{font-size:.75rem}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>FOREST ANALYTICS <span>·</span> WALK STATISTICS</h1>
+  <p>Aggregated statistics from forest traversals: walk counts, deepened edges, session insights, and detection of rich-get-richer hubs.</p>
+</header>
+<main>
+  <div id="content">
+    <div class="loading">Loading analytics…</div>
+  </div>
+</main>
+<footer>
+  Back to <a href="/forest/map.html">the forest map</a> or <a href="/forest/">the search</a>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  const $content=document.getElementById('content');
+
+  function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+  async function loadAnalytics(){
+    try{
+      const r=await fetch('/api/forest/walk-analytics');
+      const j=await r.json();
+      if(!j.ok)throw new Error(j.error||'analytics fetch failed');
+      renderAnalytics(j);
+    }catch(e){
+      $content.innerHTML='<div class="error">Failed to load analytics: '+esc(e.message)+'</div>';
+    }
+  }
+
+  function renderAnalytics(data){
+    const {summary,top_edges,daily_walks,hub_warning}=data;
+    let html='';
+
+    // Headline stats
+    html+='<div class="headline">'+
+      '<div class="stat"><div class="label">Total Walks</div><div class="value">'+summary.total_walks+'</div></div>'+
+      '<div class="stat"><div class="label">Unique Edges</div><div class="value">'+summary.unique_edges+'</div></div>'+
+      '<div class="stat"><div class="label">Avg Hops/Session</div><div class="value">'+summary.avg_hops_per_session+'</div></div>'+
+      '<div class="stat"><div class="label">Max Session Hops</div><div class="value">'+summary.max_hops_in_session+'</div></div>'+
+      '</div>';
+
+    // Hub warning banner
+    if(hub_warning.edges_over_10x_median>0){
+      html+='<div class="banner">'+
+        '<div class="title">⚠ Rich-Get-Richer Hubs Detected</div>'+
+        '<div class="subtitle">'+hub_warning.edges_over_10x_median+' edge'+(hub_warning.edges_over_10x_median===1?'':'s')+' exceed 10× median walk count ('+hub_warning.median_walk_count+' walks). These edges may be over-weighted in search results.</div>'+
+        '</div>';
+    }
+
+    // 30-day chart
+    const dates=Object.keys(daily_walks||{}).sort();
+    if(dates.length>0){
+      const counts=dates.map(d=>daily_walks[d]||0);
+      const maxCount=Math.max(...counts,1);
+      const chartH=200,chartW=600,barW=Math.max(2,Math.floor(chartW/Math.max(dates.length,1)));
+      let svgHtml='<svg viewBox="0 0 '+chartW+' '+chartH+'" xmlns="http://www.w3.org/2000/svg" style="background:#0b0e12">'+
+        '<text x="10" y="20" font-size="12" fill="#5c6a7a">walks per day (30d)</text>';
+      for(let i=0;i<dates.length;i++){
+        const h=Math.round(counts[i]/maxCount*160);
+        const x=50+i*barW,y=chartH-30-h;
+        svgHtml+='<rect x="'+x+'" y="'+y+'" width="'+(barW-1)+'" height="'+h+'" fill="#4fb3a9" opacity="0.8"/>';
+      }
+      svgHtml+='<line x1="40" y1="'+(chartH-30)+'" x2="'+(chartW-10)+'" y2="'+(chartH-30)+'" stroke="#1c242e" stroke-width="1"/>';
+      svgHtml+='<text x="10" y="'+(chartH-10)+'" font-size="11" fill="#5c6a7a">0</text>';
+      svgHtml+='<text x="10" y="25" font-size="11" fill="#5c6a7a">'+maxCount+'</text>';
+      svgHtml+='</svg>';
+      html+='<section><h2>Daily Walks (Last 30 Days)</h2>'+
+        '<div class="chart">'+svgHtml+'</div></section>';
+    }
+
+    // Top 20 edges table
+    if(top_edges.length>0){
+      html+='<section><h2>Top 20 Deepened Edges</h2>'+
+        '<table><thead><tr><th>Source</th><th>Destination</th><th style="text-align:right">Walk Count</th></tr></thead><tbody>';
+      for(const e of top_edges){
+        html+='<tr>'+
+          '<td class="edge-id" title="click to search" onclick="searchEdge(\''+esc(e.src)+'\')">'+esc(e.src.slice(0,60))+(e.src.length>60?'…':'')+'</td>'+
+          '<td class="edge-id" title="click to search" onclick="searchEdge(\''+esc(e.dst)+'\')">'+esc(e.dst.slice(0,60))+(e.dst.length>60?'…':'')+'</td>'+
+          '<td class="count">'+e.walk_count+'</td>'+
+          '</tr>';
+      }
+      html+='</tbody></table></section>';
+    }
+
+    $content.innerHTML=html;
+  }
+
+  window.searchEdge=function(edgeId){
+    const pathPart=edgeId.split('::')[0].replace(/__/g,'/');
+    window.open('/forest/?q='+encodeURIComponent(pathPart),'_blank');
+  };
+
+  loadAnalytics();
+})();
+</script>
+</body>
+</html>

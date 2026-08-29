@@ -835,6 +835,100 @@ async function handleForestWeights(url: URL, env: Env): Promise<Response> {
   }
 }
 
+async function handleForestWalkAnalytics(env: Env): Promise<Response> {
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const thirtyDaysAgo = now - 30 * 86400;
+
+    // Total walks
+    const totalRes = await env.DB.prepare('SELECT COUNT(*) AS total FROM forest_walks').first();
+    const totalWalks = (totalRes?.total as number) || 0;
+
+    // Unique edges touched
+    const edgesRes = await env.DB
+      .prepare('SELECT COUNT(DISTINCT src, dst) AS count FROM forest_walks')
+      .first();
+    const uniqueEdges = (edgesRes?.count as number) || 0;
+
+    // Top 20 deepened edges by walk count
+    const topEdgesRes = await env.DB
+      .prepare(`
+        SELECT src, dst, COUNT(*) AS walk_count
+        FROM forest_walks
+        GROUP BY src, dst
+        ORDER BY walk_count DESC
+        LIMIT 20
+      `)
+      .all();
+    const topEdges = (topEdgesRes.results || []) as Array<{ src: string; dst: string; walk_count: number }>;
+
+    // Walks per day (last 30 days)
+    const dailyRes = await env.DB
+      .prepare(`
+        SELECT datetime(ts, 'unixepoch') AS date, COUNT(*) AS count
+        FROM forest_walks
+        WHERE ts >= ?
+        GROUP BY datetime(ts, 'unixepoch')
+        ORDER BY date
+      `)
+      .bind(thirtyDaysAgo)
+      .all();
+    const dailyWalks: Record<string, number> = {};
+    for (const row of (dailyRes.results || []) as Array<{ date: string; count: number }>) {
+      dailyWalks[row.date.split(' ')[0]] = row.count;
+    }
+
+    // Per-session hop counts (session as # of distinct edges per session)
+    const sessionRes = await env.DB
+      .prepare(`
+        SELECT session_id, COUNT(DISTINCT src, dst) AS hop_count
+        FROM forest_walks
+        WHERE session_id IS NOT NULL
+        GROUP BY session_id
+      `)
+      .all();
+    const sessionStats = (sessionRes.results || []) as Array<{ session_id: string; hop_count: number }>;
+    const avgHopsPerSession =
+      sessionStats.length > 0
+        ? sessionStats.reduce((sum, s) => sum + s.hop_count, 0) / sessionStats.length
+        : 0;
+    const maxHopsInSession = sessionStats.length > 0 ? Math.max(...sessionStats.map((s) => s.hop_count)) : 0;
+
+    // Median walk count for hub warning
+    const medianRes = await env.DB
+      .prepare(`
+        WITH edge_counts AS (
+          SELECT COUNT(*) AS walk_count FROM forest_walks GROUP BY src, dst
+        )
+        SELECT walk_count FROM edge_counts ORDER BY walk_count LIMIT 1 OFFSET (SELECT COUNT(*) / 2 FROM edge_counts)
+      `)
+      .first();
+    const medianWalkCount = ((medianRes?.walk_count as number) || 0) + 1; // +1 to avoid div by 0
+
+    // Hub warning: edges with >10x median
+    const hubWarningEdges = topEdges.filter((e) => e.walk_count > medianWalkCount * 10);
+
+    return json({
+      ok: true,
+      summary: {
+        total_walks: totalWalks,
+        unique_edges: uniqueEdges,
+        avg_hops_per_session: Math.round(avgHopsPerSession * 100) / 100,
+        max_hops_in_session: maxHopsInSession,
+      },
+      top_edges: topEdges,
+      daily_walks: dailyWalks,
+      hub_warning: {
+        median_walk_count: medianWalkCount,
+        edges_over_10x_median: hubWarningEdges.length,
+        edges: hubWarningEdges,
+      },
+    });
+  } catch (e: any) {
+    return json({ ok: false, error: `analytics read failed: ${e?.message}` }, 500);
+  }
+}
+
 // ============================================================================
 //  USCP telemetry — sink + live summary
 // ============================================================================
