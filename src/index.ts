@@ -39,6 +39,13 @@ const HTML_RE = /^(.*)\.html$/;
 const PUBLIC_SET_PREFIX = 'lobby.';
 const PUBLIC_SET_MAX = 400;
 
+// Per-isolate request counters for /api/edge-hub-audit. Honest scope: they
+// cover THIS isolate since its boot — Workers recycle and the counters go with
+// them; the audit endpoint says so in the payload rather than pretending to a
+// global view. (No request-error telemetry is persisted anywhere today: the
+// USCP sheet carries game events, not worker errors.)
+const isolate = { requests: 0, errors: 0, bootMs: Date.now() };
+
 function json(data: any, status = 200, cors = true): Response {
   const headers: Record<string, string> = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
   if (cors) {
@@ -60,6 +67,7 @@ export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     const path = url.pathname;
+    isolate.requests++;
 
     if (req.method === 'OPTIONS') {
       return new Response(null, {
@@ -249,6 +257,9 @@ export default {
       if (path === '/api/forest/diff' && req.method === 'GET') {
         return await handleForestDiff(url, env);
       }
+      if (path === '/api/forest/refresh' && req.method === 'GET') {
+        return await handleForestRefresh(url, env);
+      }
       // Embed-only bridge: the offline vectorizer embeds through this binding
       // instead of the REST API — worker bindings don't carry OAuth tokens
       // that rotate out from under long-running scripts.
@@ -267,17 +278,35 @@ export default {
       }
 
       // ------------------------------------------------------------------
+      // Edge hub audit — worker health probe (dashboard: /ops/hub-audit.html)
+      // ------------------------------------------------------------------
+      if (path === '/api/edge-hub-audit' && req.method === 'GET') {
+        return await handleEdgeHubAudit(env);
+      }
+
+      // ------------------------------------------------------------------
       // Everything else — the asset tier (mist, ternary, favicon, 404)
       // ------------------------------------------------------------------
       return env.ASSETS.fetch(req);
     } catch (e: any) {
       // D1/quilt failure must never break the shelf: try the static fallback.
+      isolate.errors++;
       console.error(`quilt path failed (${path}): ${e?.message}`);
       try {
         const fallback = await env.ASSETS.fetch(req);
         if (fallback.status !== 404) return fallback;
       } catch (_) { /* fall through */ }
       return json({ error: e?.message || 'internal error' }, 500);
+    }
+  },
+
+  // Cron — hourly forest maintenance report (research/62 toolyard #1).
+  // runForestRefresh is report-only: prune candidates are listed, never removed.
+  async scheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+    try {
+      await runForestRefresh(env, Math.floor(controller.scheduledTime / 1000), 'scheduled');
+    } catch (e: any) {
+      console.error(`forest refresh cron failed: ${e?.message}`);
     }
   },
 };
@@ -838,6 +867,135 @@ async function handleForestWeights(url: URL, env: Env): Promise<Response> {
   }
 }
 
+// ============================================================================
+//  Forest refresh — scheduled maintenance reports (research/62 toolyard #1)
+// ============================================================================
+//  Hourly cron (0 * * * *) computes a decayed-weight maintenance report into
+//  forest_refresh(ts, report_json) — plus a one-line summary in
+//  forest_refresh_history. Archive-style only: NOTHING is deleted. Edges whose
+//  decayed walk weight W = Σ 2^(−age_days/90) (research/61 §3.3 counter-decay)
+//  has fallen below 0.01 are PRUNE CANDIDATES — reported, never removed.
+//  Hub alarm reuses the walk-analytics definition: walk_count > 10x median.
+//  All aggregation happens in SQL; the worker only ranks capped lists.
+
+const FOREST_PRUNE_WEIGHT_THRESHOLD = 0.01;
+const FOREST_REFRESH_SAMPLE = 20;
+
+interface ForestRefreshEdgeRow {
+  src: string;
+  dst: string;
+  kind: string;
+  weight: number;
+  walk_count: number;
+  w: number;
+}
+
+async function runForestRefresh(env: Env, now: number, source: 'scheduled' | 'manual'): Promise<Record<string, unknown>> {
+  // Same decayed-weight query as /api/forest/weights?decayed=1, index-backed
+  // by idx_forest_walks_edge(src, dst) — one scan, aggregated in SQL.
+  const edgeStatsRes = await env.DB
+    .prepare(`
+      SELECT fe.src, fe.dst, fe.kind, fe.weight,
+             COALESCE(COUNT(fw.rowid), 0) AS walk_count,
+             COALESCE(SUM(POW(0.5, (? - fw.ts) * 1.0 / 86400.0 / ${FOREST_DECAY_HALF_LIFE_DAYS})), 0) AS w
+      FROM forest_edges fe
+      LEFT JOIN forest_walks fw ON fe.src = fe.src AND fe.dst = fe.dst
+      GROUP BY fe.src, fe.dst, fe.kind
+    `)
+    .bind(now)
+    .all();
+  const edges = (edgeStatsRes.results || []) as Array<{ src: string; dst: string; kind: string; weight: number; walk_count: number; w: number }>;
+
+  // Median edge walk count for the hub alarm (same shape as walk-analytics).
+  const medianRes = await env.DB
+    .prepare(`
+      WITH edge_counts AS (
+        SELECT COUNT(*) AS walk_count FROM forest_walks GROUP BY src, dst
+      )
+      SELECT walk_count FROM edge_counts ORDER BY walk_count LIMIT 1 OFFSET (SELECT COUNT(*) / 2 FROM edge_counts)
+    `)
+    .first();
+  const medianWalkCount = ((medianRes?.walk_count as number) || 0) + 1; // +1: never divide by 0
+  const hubThreshold = medianWalkCount * 10;
+
+  const pruneCandidates = edges
+    .filter((e) => e.w < FOREST_PRUNE_WEIGHT_THRESHOLD)
+    .sort((a, b) => a.w - b.w);
+  const topDeepened = [...edges].sort((a, b) => b.w - a.w).slice(0, FOREST_REFRESH_SAMPLE);
+  const hubEdges = edges
+    .filter((e) => e.walk_count > hubThreshold)
+    .sort((a, b) => b.walk_count - a.walk_count);
+
+  const fmt = (e: ForestRefreshEdgeRow) => ({
+    src: e.src,
+    dst: e.dst,
+    kind: e.kind,
+    walk_count: e.walk_count,
+    w: Math.round(e.w * 1e6) / 1e6,
+  });
+
+  const report: Record<string, unknown> = {
+    ok: true,
+    ts: now,
+    source,
+    half_life_days: FOREST_DECAY_HALF_LIFE_DAYS,
+    prune_threshold: FOREST_PRUNE_WEIGHT_THRESHOLD,
+    total_edges: edges.length,
+    prune_candidates: pruneCandidates.length,
+    prune_note: 'candidates only — reported, never removed (archive-style, research/62 #1)',
+    prune_sample: pruneCandidates.slice(0, FOREST_REFRESH_SAMPLE).map(fmt),
+    top_deepened: topDeepened.map((e) => ({
+      ...fmt(e),
+      base: e.weight,
+      boosted: e.weight + Math.log(1 + e.w),
+    })),
+    hub_alarm: {
+      median_walk_count: medianWalkCount,
+      threshold: hubThreshold,
+      count: hubEdges.length,
+      edges: hubEdges.slice(0, FOREST_REFRESH_SAMPLE).map(fmt),
+    },
+  };
+
+  const top0 = topDeepened[0];
+  const summary =
+    `${edges.length} edges · ${pruneCandidates.length} prune candidates (W<${FOREST_PRUNE_WEIGHT_THRESHOLD}) · ` +
+    `top deepened ${top0 ? `${top0.src}→${top0.dst}` : '—'} · ` +
+    `hubs >${hubThreshold} walks: ${hubEdges.length}`;
+
+  try {
+    await env.DB.batch([
+      env.DB.prepare('INSERT OR REPLACE INTO forest_refresh (ts, report_json) VALUES (?, ?)').bind(now, JSON.stringify(report)),
+      env.DB.prepare('INSERT OR REPLACE INTO forest_refresh_history (ts, summary) VALUES (?, ?)').bind(now, summary),
+    ]);
+  } catch (e: any) {
+    console.error(`forest_refresh write failed: ${e?.message}`); // report still returned
+  }
+  return report;
+}
+
+async function handleForestRefresh(url: URL, env: Env): Promise<Response> {
+  try {
+    if (url.searchParams.get('run') === '1') {
+      // Manual trigger of the same idempotent computation the hourly cron runs.
+      return json(await runForestRefresh(env, Math.floor(Date.now() / 1000), 'manual'));
+    }
+    const latest = await env.DB
+      .prepare('SELECT ts, report_json FROM forest_refresh ORDER BY ts DESC LIMIT 1')
+      .first();
+    if (!latest) {
+      return json({
+        ok: true,
+        latest: null,
+        hint: 'no refresh report yet — cron runs hourly (0 * * * *), or compute one now with ?run=1',
+      });
+    }
+    return json(JSON.parse(latest.report_json as string));
+  } catch (e: any) {
+    return json({ ok: false, error: `refresh read failed: ${e?.message}` }, 500);
+  }
+}
+
 async function handleForestWalkAnalytics(env: Env): Promise<Response> {
   try {
     const now = Math.floor(Date.now() / 1000);
@@ -1138,6 +1296,152 @@ async function loadYardSignals(env: Env): Promise<YardSignal[]> {
 async function handleUscpGet(env: Env): Promise<Response> {
   const yard = await loadYardSignals(env);
   return json({ ok: true, yard });
+}
+
+// ============================================================================
+//  Edge hub audit — worker health probe (toolyard #8, engineering lane)
+// ============================================================================
+//  GET /api/edge-hub-audit runs one cheap pass over every dependency the shelf
+//  leans on; each check reports green | amber | red and the worst one wins:
+//    * requests   — error rate in THIS isolate since boot (the only request
+//                   error telemetry that exists; scope stated in the payload —
+//                   the USCP sink stores game events, not worker errors)
+//    * telemetry  — quilt `telemetry` sheet (the /api/uscp sink): readable,
+//                   how many yard packets, and how fresh the newest signal is
+//    * d1         — timed `SELECT 1` latency sample on quilt-fleet-db
+//    * vectorize  — availability: embed a fixed probe string, one topK=1
+//                   query against `ai-writings-canon`
+//    * rateLimit  — hits absorbed by the per-isolate token buckets (a busy
+//                   limiter is the limiter working, so this never goes red)
+//  Overall red answers 503 so plain HTTP monitors can use it; the dashboard
+//  at /ops/hub-audit.html shows the traffic lights and banners on red.
+
+type CheckStatus = 'green' | 'amber' | 'red';
+interface HubCheck { status: CheckStatus; [k: string]: any }
+
+const AUDIT_ERRRATE_MIN_SAMPLES = 20;   // below this the error rate is noise
+const AUDIT_ERRRATE_AMBER = 0.05;
+const AUDIT_ERRRATE_RED = 0.20;
+const AUDIT_TELEMETRY_STALE_SEC = 7 * 86400;
+const AUDIT_D1_AMBER_MS = 200;
+const AUDIT_D1_RED_MS = 1000;
+const AUDIT_RATELIMIT_AMBER = 100;
+
+function worstStatus(statuses: CheckStatus[]): CheckStatus {
+  if (statuses.includes('red')) return 'red';
+  if (statuses.includes('amber')) return 'amber';
+  return 'green';
+}
+
+async function handleEdgeHubAudit(env: Env): Promise<Response> {
+  const checks: Record<string, HubCheck> = {};
+
+  // 1 — requests: per-isolate error rate since boot
+  {
+    const requests = isolate.requests;
+    const errors = isolate.errors;
+    const rate = requests > 0 ? errors / requests : 0;
+    let status: CheckStatus = 'green';
+    if (requests >= AUDIT_ERRRATE_MIN_SAMPLES && rate >= AUDIT_ERRRATE_AMBER) status = 'amber';
+    if (requests >= AUDIT_ERRRATE_MIN_SAMPLES && rate >= AUDIT_ERRRATE_RED) status = 'red';
+    checks.requests = {
+      status,
+      requests,
+      errors,
+      errorRate: Math.round(rate * 1e4) / 1e4,
+      uptimeSec: Math.round((Date.now() - isolate.bootMs) / 1000),
+      scope: 'this isolate since boot — Workers recycle and the counters reset',
+    };
+  }
+
+  // 2 — telemetry: the USCP sink's quilt sheet, read directly so a failure
+  //     is a red check instead of loadYardSignals' quiet empty-handed shrug.
+  try {
+    const storage = new D1Storage(env.DB, AUTHOR);
+    const { cells } = await storage.load(USCP_SHEET);
+    const signals = cells
+      .filter((c) => c.id.startsWith(USCP_CELL_PREFIX))
+      .map((c) => {
+        const v = c.value as TelemetryCell;
+        return { signal: c.id.slice(USCP_CELL_PREFIX.length), count: v?.count ?? 0, t: v?.t ?? 0 };
+      });
+    const totalPackets = signals.reduce((s, y) => s + y.count, 0);
+    let status: CheckStatus = 'green';
+    let note: string | undefined;
+    let freshestAgeSec: number | null = null;
+    if (!signals.length) {
+      status = 'amber';
+      note = 'telemetry sheet readable but empty — the yard is quiet (game telemetry is opt-in)';
+    } else {
+      const freshest = Math.max(...signals.map((y) => y.t));
+      freshestAgeSec = Math.max(0, Math.floor(Date.now() / 1000) - freshest);
+      if (freshestAgeSec > AUDIT_TELEMETRY_STALE_SEC) {
+        status = 'amber';
+        note = `freshest signal is ${Math.floor(freshestAgeSec / 86400)}d old`;
+      }
+    }
+    checks.telemetry = {
+      status, signals: signals.length, totalPackets, freshestAgeSec,
+      ...(note ? { note } : {}),
+    };
+  } catch (e: any) {
+    checks.telemetry = { status: 'red', error: `telemetry sheet unreadable: ${e?.message}` };
+  }
+
+  // 3 — d1: timed trivial query
+  {
+    const t0 = Date.now();
+    try {
+      await env.DB.prepare('SELECT 1 AS probe').first();
+      const ms = Date.now() - t0;
+      const status: CheckStatus = ms > AUDIT_D1_RED_MS ? 'red' : ms > AUDIT_D1_AMBER_MS ? 'amber' : 'green';
+      checks.d1 = { status, latencyMs: ms, query: 'SELECT 1' };
+    } catch (e: any) {
+      checks.d1 = { status: 'red', error: `d1 probe failed: ${e?.message}` };
+    }
+  }
+
+  // 4 — vectorize: cheap embed + topK=1 query
+  {
+    const t0 = Date.now();
+    try {
+      const out: any = await env.AI.run('@cf/baai/bge-m3', { text: ['edge hub audit availability probe'] });
+      const vec = out?.data?.[0] ?? out?.embeddings?.[0];
+      if (!Array.isArray(vec) || vec.length === 0) throw new Error('probe embedding returned no vector');
+      const res = await env.CANON.query(vec, { topK: 1, returnMetadata: 'none' });
+      const ms = Date.now() - t0;
+      const matches = res?.matches?.length ?? 0;
+      checks.vectorize = {
+        status: matches === 0 ? 'amber' : 'green',
+        matches,
+        topScore: res?.matches?.[0]?.score ?? null,
+        latencyMs: ms,
+        probe: 'bge-m3 embed + topK=1 query on ai-writings-canon',
+      };
+    } catch (e: any) {
+      checks.vectorize = { status: 'red', error: `vectorize probe failed: ${e?.message}` };
+    }
+  }
+
+  // 5 — rate limit: hits absorbed by the per-isolate token buckets
+  {
+    const uscp = uscpLimiter.stats();
+    const walk = forestWalkLimiter.stats();
+    const hits = uscp.rejected + walk.rejected;
+    checks.rateLimit = {
+      status: hits > AUDIT_RATELIMIT_AMBER ? 'amber' : 'green',
+      hits,
+      uscp,
+      forestWalks: walk,
+      scope: 'this isolate — buckets live in isolate memory by design',
+    };
+  }
+
+  const overall = worstStatus(Object.values(checks).map((c) => c.status));
+  return json(
+    { ok: overall !== 'red', overall, generatedAt: new Date().toISOString(), checks },
+    overall === 'red' ? 503 : 200,
+  );
 }
 
 async function handleIndex(req: Request, env: Env, sheet: 'papers' | 'writings'): Promise<Response> {

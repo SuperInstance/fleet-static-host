@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edge Hub Audit</title>
+<style>
+  :root{--bg:#0b0e12;--fg:#c9d4e0;--dim:#5c6a7a;--acc:#4fb3a9;--warn:#d9a441;--bad:#c95d5d;--line:#1c242e;--card:#141b24}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 ui-monospace,Menlo,Consolas,monospace}
+  header{padding:2rem 2rem 1rem;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:1.3rem;letter-spacing:.08em}
+  h1 span{color:var(--acc)}
+  header p{color:var(--dim);margin:.4rem 0 0;max-width:78ch}
+  .meta{color:var(--dim);font-size:.8rem;margin-top:.6rem}
+  main{padding:1.5rem 2rem 2rem;max-width:1080px;margin:0 auto}
+  .banner{border:2px solid var(--bad);border-radius:.4rem;background:rgba(201,93,93,.12);padding:1.2rem;margin-bottom:2rem;color:var(--bad);display:none}
+  .banner.show{display:block}
+  .banner .title{font-weight:bold;font-size:1.2rem;letter-spacing:.06em;margin-bottom:.4rem}
+  .banner .subtitle{color:var(--fg);font-size:.85rem}
+  .overall{display:flex;align-items:center;gap:.8rem;border:1px solid var(--line);border-radius:.4rem;background:var(--card);padding:1rem 1.2rem;margin-bottom:2rem}
+  .overall .dot{width:1.4rem;height:1.4rem;border-radius:50%;flex:none}
+  .overall .word{font-weight:bold;letter-spacing:.1em;text-transform:uppercase}
+  .overall .when{margin-left:auto;color:var(--dim);font-size:.8rem}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem}
+  .check{border:1px solid var(--line);border-radius:.4rem;background:var(--card);padding:1rem}
+  .check .head{display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem}
+  .check .dot{width:.9rem;height:.9rem;border-radius:50%;flex:none}
+  .check .name{font-weight:bold;letter-spacing:.08em}
+  .check .state{margin-left:auto;font-size:.75rem;letter-spacing:.1em;text-transform:uppercase}
+  .kv{display:flex;justify-content:space-between;gap:1rem;padding:.25rem 0;border-bottom:1px solid #1a2129;font-size:.82rem}
+  .kv:last-child{border-bottom:none}
+  .kv .k{color:var(--dim)}
+  .kv .v{text-align:right;word-break:break-all}
+  .note{color:var(--dim);font-size:.75rem;margin-top:.6rem;font-style:italic}
+  .err{color:var(--bad)}
+  .loading{color:var(--dim);padding:2rem;text-align:center}
+  footer{padding:2rem;color:var(--dim);font-size:.75rem;border-top:1px solid var(--line);margin-top:3rem}
+  footer a{color:var(--acc);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  .green{background:#3fae7a;box-shadow:0 0 .5rem rgba(63,174,122,.7)}
+  .amber{background:var(--warn);box-shadow:0 0 .5rem rgba(217,164,65,.7)}
+  .red{background:var(--bad);box-shadow:0 0 .5rem rgba(201,93,93,.8)}
+  .c-green{color:#3fae7a}.c-amber{color:var(--warn)}.c-red{color:var(--bad)}
+  @media (max-width:700px){
+    main{padding:1rem}
+    header{padding:1.2rem 1rem .8rem}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>EDGE HUB AUDIT <span>·</span> WORKER HEALTH PROBE</h1>
+  <p>Live traffic lights for the shelf's dependencies: request errors, USCP telemetry, D1 latency, Vectorize availability, rate-limit hits. Probes <code>/api/edge-hub-audit</code>; auto-refreshes every 30s.</p>
+  <div class="meta" id="meta">loading…</div>
+</header>
+<main>
+  <div class="banner" id="banner">
+    <div class="title">⚠ A CHECK IS FAILING</div>
+    <div class="subtitle" id="bannerSub"></div>
+  </div>
+  <div class="overall" id="overall" style="display:none">
+    <div class="dot" id="overallDot"></div>
+    <div class="word" id="overallWord"></div>
+    <div class="when" id="overallWhen"></div>
+  </div>
+  <div class="grid" id="grid">
+    <div class="loading">running probes…</div>
+  </div>
+</main>
+<footer>
+  Raw JSON: <a href="/api/edge-hub-audit">/api/edge-hub-audit</a> · back to <a href="/">the shelf</a>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  const $=id=>document.getElementById(id);
+  const REFRESH_MS=30000;
+  const CHECK_TITLES={
+    requests:'REQUEST ERRORS',
+    telemetry:'USCP TELEMETRY SINK',
+    d1:'D1 LATENCY',
+    vectorize:'VECTORIZE',
+    rateLimit:'RATE-LIMIT HITS'
+  };
+  const SKIP_KEYS={status:true};
+  let timer=null;
+
+  function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function fmtAge(sec){
+    if(sec==null)return '—';
+    if(sec<60)return sec+'s';
+    if(sec<3600)return Math.floor(sec/60)+'m';
+    if(sec<86400)return Math.floor(sec/3600)+'h';
+    return Math.floor(sec/86400)+'d';
+  }
+
+  function render(j){
+    const overall=j.overall||'red';
+    const cls=c=>c==='green'?'green':c==='amber'?'amber':'red';
+    // banner: any red check (or overall red) fails loudly
+    const failed=Object.entries(j.checks||{}).filter(([k,c])=>c.status==='red');
+    if(overall==='red'||failed.length){
+      $('banner').classList.add('show');
+      $('bannerSub').textContent=failed.length
+        ?failed.map(([k])=>k).join(', ')+' probe'+(failed.length===1?' is':'s are')+' down.'
+        :'overall status is red.';
+    }else{
+      $('banner').classList.remove('show');
+    }
+    // overall strip
+    $('overall').style.display='flex';
+    $('overallDot').className='dot '+cls(overall);
+    $('overallWord').textContent=overall;
+    $('overallWord').className='word c-'+overall;
+    $('overallWhen').textContent='probed '+new Date(j.generatedAt||Date.now()).toLocaleTimeString();
+    // per-check cards
+    let html='';
+    for(const[key,check]of Object.entries(j.checks||{})){
+      const st=check.status||'red';
+      html+='<div class="check">'+
+        '<div class="head"><div class="dot '+cls(st)+'"></div>'+
+        '<div class="name">'+esc(CHECK_TITLES[key]||key)+'</div>'+
+        '<div class="state c-'+st+'">'+st+'</div></div>';
+      for(const[k,v]of Object.entries(check)){
+        if(SKIP_KEYS[k])continue;
+        let out=v;
+        if(v===null||v===undefined)out='—';
+        else if(typeof v==='object')out=JSON.stringify(v);
+        else if(k==='errorRate')out=(v*100).toFixed(2)+'%';
+        else if(k==='freshestAgeSec')out=fmtAge(v);
+        else if(k==='uptimeSec')out=fmtAge(v);
+        else if(typeof v==='number'&&k==='latencyMs')out=v+'ms';
+        const klass=(k==='error')?' class="err"':'';
+        html+='<div class="kv"><span class="k">'+esc(k)+'</span><span class="v"'+klass+'>'+esc(out)+'</span></div>';
+      }
+      html+='</div>';
+    }
+    $('grid').innerHTML=html||'<div class="loading">no checks returned</div>';
+  }
+
+  function fail(msg){
+    $('banner').classList.add('show');
+    $('bannerSub').textContent=msg;
+    $('overall').style.display='none';
+    $('grid').innerHTML='<div class="loading">'+esc(msg)+'</div>';
+  }
+
+  async function load(){
+    try{
+      const r=await fetch('/api/edge-hub-audit',{cache:'no-store'});
+      const j=await r.json();
+      if(!j.checks)throw new Error(j.error||'probe returned no checks');
+      render(j);
+      $('meta').textContent='auto-refresh 30s · HTTP '+r.status;
+    }catch(e){
+      fail('probe unreachable: '+e.message);
+      $('meta').textContent='auto-refresh 30s · last attempt failed';
+    }
+  }
+
+  load();
+  timer=setInterval(load,REFRESH_MS);
+})();
+</script>
+</body>
+</html>

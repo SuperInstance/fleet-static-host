@@ -107,6 +107,7 @@ interface Bucket { tokens: number; last: number; }
 
 export class RateLimiter {
   private buckets = new Map<string, Bucket>();
+  private rejected = 0;
   private capacity: number;
   private refillPerSec: number;
   private now: () => number;
@@ -122,8 +123,13 @@ export class RateLimiter {
     b.tokens = Math.min(this.capacity, b.tokens + ((t - b.last) / 1000) * this.refillPerSec);
     b.last = t;
     if (b.tokens >= 1) { b.tokens -= 1; return true; }
+    this.rejected++;
     return false;
   }
   /** For tests / diagnostics. */
   size(): number { return this.buckets.size; }
+  /** Hits absorbed so far in this isolate — feeds /api/edge-hub-audit. */
+  stats(): { buckets: number; rejected: number } {
+    return { buckets: this.buckets.size, rejected: this.rejected };
+  }
 }
