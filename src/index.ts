@@ -246,6 +246,9 @@ export default {
       if (path === '/api/forest/walk-analytics' && req.method === 'GET') {
         return await handleForestWalkAnalytics(env);
       }
+      if (path === '/api/forest/diff' && req.method === 'GET') {
+        return await handleForestDiff(url, env);
+      }
       // Embed-only bridge: the offline vectorizer embeds through this binding
       // instead of the REST API — worker bindings don't carry OAuth tokens
       // that rotate out from under long-running scripts.
@@ -926,6 +929,144 @@ async function handleForestWalkAnalytics(env: Env): Promise<Response> {
     });
   } catch (e: any) {
     return json({ ok: false, error: `analytics read failed: ${e?.message}` }, 500);
+  }
+}
+
+async function handleForestDiff(url: URL, env: Env): Promise<Response> {
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    let then: number | null = null;
+    let nowTs: number | null = null;
+
+    // Parse query params: ?then=<ts>&now=<ts>
+    const thenParam = url.searchParams.get('then');
+    const nowParam = url.searchParams.get('now');
+    if (thenParam) then = parseInt(thenParam, 10);
+    if (nowParam) nowTs = parseInt(nowParam, 10);
+
+    // If both provided, use them. Otherwise infer from forest_refresh or forest_walks.
+    if (!then || !nowTs || !Number.isFinite(then) || !Number.isFinite(nowTs)) {
+      // Try to load two most recent forest_refresh reports
+      try {
+        const refreshRows = await env.DB
+          .prepare('SELECT ts, report_json FROM forest_refresh ORDER BY ts DESC LIMIT 2')
+          .all();
+        const refreshes = (refreshRows.results || []) as Array<{ ts: number; report_json: string }>;
+        if (refreshes.length === 2) {
+          then = refreshes[1].ts;
+          nowTs = refreshes[0].ts;
+        } else if (refreshes.length === 1) {
+          nowTs = refreshes[0].ts;
+          // Fall back to 24h before
+          then = nowTs - 86400;
+        }
+      } catch {
+        // forest_refresh table doesn't exist or is empty; proceed to fallback
+      }
+
+      // Fallback: 24 hours ago from now via forest_walks
+      if (!then || !nowTs) {
+        nowTs = now;
+        then = now - 86400;
+      }
+    }
+
+    // Load edges at both timestamps (walk counts as of each time)
+    const thenWalks = new Map<string, number>();
+    const nowWalks = new Map<string, number>();
+
+    // Past: count walks up to 'then'
+    try {
+      const thenRows = await env.DB
+        .prepare('SELECT src, dst, COUNT(*) AS cnt FROM forest_walks WHERE ts <= ? GROUP BY src, dst')
+        .bind(then)
+        .all();
+      for (const r of (thenRows.results || []) as Array<{ src: string; dst: string; cnt: number }>) {
+        const key = `${r.src}|${r.dst}`;
+        thenWalks.set(key, r.cnt);
+      }
+    } catch (e: any) {
+      console.error(`diff thenWalks read failed: ${e?.message}`);
+    }
+
+    // Present: count walks up to 'now'
+    try {
+      const nowRows = await env.DB
+        .prepare('SELECT src, dst, COUNT(*) AS cnt FROM forest_walks WHERE ts <= ? GROUP BY src, dst')
+        .bind(nowTs)
+        .all();
+      for (const r of (nowRows.results || []) as Array<{ src: string; dst: string; cnt: number }>) {
+        const key = `${r.src}|${r.dst}`;
+        nowWalks.set(key, r.cnt);
+      }
+    } catch (e: any) {
+      console.error(`diff nowWalks read failed: ${e?.message}`);
+    }
+
+    // Compute deltas: (src|dst) -> (then_count, now_count, delta)
+    const allKeys = new Set([...thenWalks.keys(), ...nowWalks.keys()]);
+    const deltas: Array<{ src: string; dst: string; then: number; now: number; delta: number; weight_delta: number }> = [];
+    for (const key of allKeys) {
+      const [src, dst] = key.split('|');
+      const thenCnt = thenWalks.get(key) || 0;
+      const nowCnt = nowWalks.get(key) || 0;
+      const delta = nowCnt - thenCnt;
+      if (delta !== 0) {
+        // Weight delta (with decay): boosted = base + ln(1 + w)
+        // Approximate as Δ(ln(1 + w)) ≈ (nowCnt - thenCnt) / (1 + max(thenCnt, 1))
+        const weightDelta = delta / (1 + Math.max(thenCnt, 1));
+        deltas.push({ src, dst, then: thenCnt, now: nowCnt, delta, weight_delta: Math.round(weightDelta * 1e6) / 1e6 });
+      }
+    }
+
+    // Added edges (now > 0, then = 0)
+    const added = deltas.filter((d) => d.then === 0 && d.now > 0);
+    // Removed edges (then > 0, now = 0)
+    const removed = deltas.filter((d) => d.then > 0 && d.now === 0);
+    // Top weight deltas (largest absolute change)
+    const topDeltas = deltas.filter((d) => d.then > 0 && d.now > 0).sort((a, b) => Math.abs(b.weight_delta) - Math.abs(a.weight_delta)).slice(0, 20);
+
+    // Hub alarm: edges that crossed 10x-median threshold during period
+    let hubAlarms: Array<{ src: string; dst: string; now: number; median: number }> = [];
+    try {
+      // Median walk count across all edges at 'now'
+      const medianRes = await env.DB
+        .prepare(`
+          WITH edge_counts AS (
+            SELECT COUNT(*) AS walk_count FROM forest_walks WHERE ts <= ? GROUP BY src, dst
+          )
+          SELECT walk_count FROM edge_counts ORDER BY walk_count LIMIT 1 OFFSET (SELECT COUNT(*) / 2 FROM edge_counts)
+        `)
+        .bind(nowTs)
+        .first();
+      const medianWalkCount = ((medianRes?.walk_count as number) || 1);
+      const threshold = medianWalkCount * 10;
+
+      // Edges that are now over threshold
+      for (const d of deltas) {
+        if (d.now >= threshold && d.then < threshold) {
+          hubAlarms.push({ src: d.src, dst: d.dst, now: d.now, median: medianWalkCount });
+        }
+      }
+    } catch (e: any) {
+      console.error(`diff hub alarm read failed: ${e?.message}`);
+    }
+
+    return json({
+      ok: true,
+      period: { then, now: nowTs },
+      stats: {
+        edges_added: added.length,
+        edges_removed: removed.length,
+        edges_changed: deltas.filter((d) => d.then > 0 && d.now > 0).length,
+      },
+      added: added.sort((a, b) => b.now - a.now),
+      removed: removed.sort((a, b) => b.then - a.then),
+      top_weight_deltas: topDeltas,
+      hub_alarms: hubAlarms,
+    });
+  } catch (e: any) {
+    return json({ ok: false, error: `diff read failed: ${e?.message}` }, 500);
   }
 }
 

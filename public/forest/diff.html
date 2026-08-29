@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forest Diff Analytics</title>
+<style>
+  :root{--bg:#0b0e12;--fg:#c9d4e0;--dim:#5c6a7a;--acc:#4fb3a9;--warn:#d9a441;--bad:#c95d5d;--line:#1c242e;--card:#141b24}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 ui-monospace,Menlo,Consolas,monospace}
+  header{padding:2rem 2rem 1rem;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:1.3rem;letter-spacing:.08em}
+  h1 span{color:var(--acc)}
+  header p{color:var(--dim);margin:.4rem 0 0;max-width:78ch}
+  main{padding:1.5rem 2rem 2rem;max-width:1280px;margin:0 auto}
+  .headline{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
+  .stat{border:1px solid var(--line);border-radius:.4rem;background:var(--card);padding:1rem;text-align:center}
+  .stat .label{color:var(--dim);font-size:.75rem;letter-spacing:.1em;margin-bottom:.3rem}
+  .stat .value{font-size:1.8rem;font-weight:bold;color:var(--acc)}
+  .stat .subtitle{color:var(--dim);font-size:.8rem;margin-top:.3rem}
+  .banner{border:2px solid var(--bad);border-radius:.4rem;background:rgba(201,93,93,.08);padding:1rem;margin-bottom:2rem;color:var(--bad)}
+  .banner .title{font-weight:bold;margin-bottom:.5rem}
+  .banner .subtitle{color:var(--fg);font-size:.85rem}
+  .twin-col{display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:2.5rem}
+  .twin-col section{margin-bottom:0}
+  @media (max-width:900px){
+    .twin-col{grid-template-columns:1fr}
+  }
+  section{margin-bottom:2.5rem}
+  section h2{font-size:.85rem;letter-spacing:.12em;color:var(--dim);margin:0 0 1rem;border-bottom:1px solid var(--line);padding-bottom:.4rem;text-transform:uppercase}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;padding:.5rem 0;font-size:.8rem;letter-spacing:.1em;color:var(--dim);border-bottom:1px solid var(--line)}
+  td{padding:.5rem 0;border-bottom:1px solid #243040;font-size:.85rem}
+  tr:hover{background:rgba(79,179,169,.04)}
+  .edge-id{color:var(--acc);word-break:break-all;max-width:200px}
+  .edge-id:hover{cursor:pointer;text-decoration:underline}
+  .count{text-align:right;font-weight:bold;color:var(--acc)}
+  .delta{text-align:right}
+  .delta.add{color:#7dd3c0}
+  .delta.remove{color:#d9a441}
+  .delta.change{color:var(--acc)}
+  .loading{color:var(--dim);padding:2rem;text-align:center}
+  .error{color:var(--bad);padding:1rem;background:rgba(201,93,93,.08);border:1px solid var(--bad);border-radius:.4rem;margin-bottom:1rem}
+  .timepicker{margin-bottom:2rem;display:grid;grid-template-columns:auto 1fr auto 1fr auto;gap:1rem;align-items:center}
+  .timepicker input{background:var(--card);border:1px solid var(--line);border-radius:.3rem;color:var(--fg);padding:.4rem;font:inherit;max-width:200px}
+  .timepicker input:focus{outline:none;border-color:var(--acc)}
+  .timepicker button{background:var(--acc);color:var(--bg);border:none;border-radius:.3rem;padding:.4rem 1rem;font-weight:bold;cursor:pointer}
+  .timepicker button:hover{opacity:.85}
+  footer{padding:2rem;color:var(--dim);font-size:.75rem;border-top:1px solid var(--line);margin-top:3rem}
+  footer a{color:var(--acc);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  @media (max-width:900px){
+    main{padding:1rem}
+    .stat{padding:.7rem}
+    .stat .value{font-size:1.4rem}
+    .edge-id{max-width:120px}
+    table{font-size:.75rem}
+    .timepicker{grid-template-columns:1fr;gap:.5rem}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>FOREST DIFF <span>·</span> EDGE CHANGE ANALYTICS</h1>
+  <p>Analyze forest topology changes between two time periods: new edges, weight deltas, and hub alarms.</p>
+</header>
+<main>
+  <div class="timepicker">
+    <label>Then:</label>
+    <input type="number" id="thenInput" placeholder="Unix timestamp (optional)">
+    <label>Now:</label>
+    <input type="number" id="nowInput" placeholder="Unix timestamp (optional)">
+    <button onclick="loadDiff()">Load</button>
+  </div>
+  <div id="content">
+    <div class="loading">Loading diff…</div>
+  </div>
+</main>
+<footer>
+  Back to <a href="/forest/map.html">the forest map</a>, <a href="/forest/analytics.html">analytics</a>, or <a href="/forest/">the search</a>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  const $content=document.getElementById('content');
+  const $thenInput=document.getElementById('thenInput');
+  const $nowInput=document.getElementById('nowInput');
+
+  function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+  function formatTs(ts){
+    const d=new Date(ts*1000);
+    return d.toISOString().split('T')[0]+' '+d.toISOString().split('T')[1].slice(0,5);
+  }
+
+  window.loadDiff=async function(){
+    try{
+      const then=$thenInput.value?parseInt($thenInput.value,10):null;
+      const now=$nowInput.value?parseInt($nowInput.value,10):null;
+      const params=new URLSearchParams();
+      if(then)params.append('then',then);
+      if(now)params.append('now',now);
+      const url='/api/forest/diff'+(params.toString()?'?'+params.toString():'');
+      const r=await fetch(url);
+      const j=await r.json();
+      if(!j.ok)throw new Error(j.error||'diff fetch failed');
+      renderDiff(j);
+    }catch(e){
+      $content.innerHTML='<div class="error">Failed to load diff: '+esc(e.message)+'</div>';
+    }
+  };
+
+  function renderDiff(data){
+    const {period,stats,added,removed,top_weight_deltas,hub_alarms}=data;
+    let html='';
+
+    // Headline stats
+    html+='<div class="headline">'+
+      '<div class="stat"><div class="label">Edges Added</div><div class="value" style="color:#7dd3c0">'+stats.edges_added+'</div></div>'+
+      '<div class="stat"><div class="label">Edges Removed</div><div class="value" style="color:#d9a441">'+stats.edges_removed+'</div></div>'+
+      '<div class="stat"><div class="label">Edges Changed</div><div class="value">'+stats.edges_changed+'</div></div>'+
+      '<div class="stat"><div class="label">Hub Alarms</div><div class="value" style="color:#c95d5d">'+hub_alarms.length+'</div></div>'+
+      '</div>';
+
+    // Period indicator
+    html+='<section><div style="color:var(--dim);font-size:.9rem">Period: <strong>'+esc(formatTs(period.then))+'</strong> → <strong>'+esc(formatTs(period.now))+'</strong></div></section>';
+
+    // Hub warning banner
+    if(hub_alarms.length>0){
+      html+='<div class="banner">'+
+        '<div class="title">⚠ New Hub Alarms</div>'+
+        '<div class="subtitle">'+hub_alarms.length+' edge'+(hub_alarms.length===1?'':'s')+' crossed 10× median walk count during this period. These may become over-weighted in search.</div>'+
+        '</div>';
+    }
+
+    // Two-column layout: added | removed
+    html+='<div class="twin-col">';
+
+    // Added edges
+    if(added.length>0){
+      html+='<section><h2>Added Edges ('+added.length+')</h2>'+
+        '<table><thead><tr><th>Source</th><th style="text-align:right">Walk Count</th></tr></thead><tbody>';
+      for(const e of added){
+        html+='<tr>'+
+          '<td class="edge-id" title="click to search" onclick="searchEdge(\''+esc(e.src)+'\')">'+esc(e.src.slice(0,40))+(e.src.length>40?'…':'')+'<br/>→ '+esc(e.dst.slice(0,40))+(e.dst.length>40?'…':'')+'</td>'+
+          '<td class="count">'+e.now+'</td>'+
+          '</tr>';
+      }
+      html+='</tbody></table></section>';
+    }else{
+      html+='<section><h2>Added Edges</h2><div style="color:var(--dim);padding:1rem">None</div></section>';
+    }
+
+    // Removed edges
+    if(removed.length>0){
+      html+='<section><h2>Removed Edges ('+removed.length+')</h2>'+
+        '<table><thead><tr><th>Source</th><th style="text-align:right">Walk Count</th></tr></thead><tbody>';
+      for(const e of removed){
+        html+='<tr>'+
+          '<td class="edge-id" title="click to search" onclick="searchEdge(\''+esc(e.src)+'\')">'+esc(e.src.slice(0,40))+(e.src.length>40?'…':'')+'<br/>→ '+esc(e.dst.slice(0,40))+(e.dst.length>40?'…':'')+'</td>'+
+          '<td class="count">'+e.then+'</td>'+
+          '</tr>';
+      }
+      html+='</tbody></table></section>';
+    }else{
+      html+='<section><h2>Removed Edges</h2><div style="color:var(--dim);padding:1rem">None</div></section>';
+    }
+
+    html+='</div>';
+
+    // Top weight deltas
+    if(top_weight_deltas.length>0){
+      html+='<section><h2>Top Weight Deltas ('+top_weight_deltas.length+')</h2>'+
+        '<table><thead><tr><th>Source → Dest</th><th style="text-align:right">Before</th><th style="text-align:right">After</th><th style="text-align:right">Δ Weight</th></tr></thead><tbody>';
+      for(const e of top_weight_deltas){
+        const deltaClass=e.weight_delta>0?'add':'remove';
+        html+='<tr>'+
+          '<td class="edge-id" title="click to search" onclick="searchEdge(\''+esc(e.src)+'\')">'+esc(e.src.slice(0,35))+(e.src.length>35?'…':'')+'<br/>→ '+esc(e.dst.slice(0,35))+(e.dst.length>35?'…':'')+'</td>'+
+          '<td class="count">'+e.then+'</td>'+
+          '<td class="count">'+e.now+'</td>'+
+          '<td class="delta '+deltaClass+'">'+(e.weight_delta>0?'+':'')+e.weight_delta.toFixed(4)+'</td>'+
+          '</tr>';
+      }
+      html+='</tbody></table></section>';
+    }
+
+    // Hub alarms detail
+    if(hub_alarms.length>0){
+      html+='<section><h2>Hub Alarms Detail</h2>'+
+        '<table><thead><tr><th>Source</th><th style="text-align:right">Walk Count</th><th style="text-align:right">Median</th><th style="text-align:right">× Median</th></tr></thead><tbody>';
+      for(const a of hub_alarms){
+        const ratio=a.now/a.median;
+        html+='<tr>'+
+          '<td class="edge-id" title="click to search" onclick="searchEdge(\''+esc(a.src)+'\')">'+esc(a.src.slice(0,40))+(a.src.length>40?'…':'')+'<br/>→ '+esc(a.dst.slice(0,40))+(a.dst.length>40?'…':'')+'</td>'+
+          '<td class="count">'+a.now+'</td>'+
+          '<td class="count">'+a.median+'</td>'+
+          '<td class="count" style="color:#c95d5d">'+ratio.toFixed(1)+'×</td>'+
+          '</tr>';
+      }
+      html+='</tbody></table></section>';
+    }
+
+    $content.innerHTML=html;
+  };
+
+  window.searchEdge=function(edgeId){
+    const pathPart=edgeId.split('::')[0].replace(/__/g,'/');
+    window.open('/forest/?q='+encodeURIComponent(pathPart),'_blank');
+  };
+
+  // Load initial diff on page load
+  loadDiff();
+})();
+</script>
+</body>
+</html>
