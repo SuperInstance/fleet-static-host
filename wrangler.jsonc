@@ -34,5 +34,8 @@
       "database_name": "quilt-fleet-db",
       "database_id": "19d1d2f3-d6ef-48bb-9475-253f303bfb37"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": ["0 * * * *"]
+  }
 }

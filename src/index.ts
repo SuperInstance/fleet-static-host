@@ -899,7 +899,7 @@ async function runForestRefresh(env: Env, now: number, source: 'scheduled' | 'ma
              COALESCE(COUNT(fw.rowid), 0) AS walk_count,
              COALESCE(SUM(POW(0.5, (? - fw.ts) * 1.0 / 86400.0 / ${FOREST_DECAY_HALF_LIFE_DAYS})), 0) AS w
       FROM forest_edges fe
-      LEFT JOIN forest_walks fw ON fe.src = fe.src AND fe.dst = fe.dst
+      LEFT JOIN forest_walks fw ON fw.src = fe.src AND fw.dst = fe.dst
       GROUP BY fe.src, fe.dst, fe.kind
     `)
     .bind(now)
