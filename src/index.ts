@@ -29,6 +29,8 @@ export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
   QUILT_SEED_KEY?: string;
+  AI: Ai;
+  CANON: Vectorize;
 }
 
 const AUTHOR = 'fleet-static-host';
@@ -215,6 +217,14 @@ export default {
       }
 
       // ------------------------------------------------------------------
+      // Canon — semantic search over the ai-writings corpus
+      // (Vectorize `ai-writings-canon`, bge-m3 embeddings, 1024-dim)
+      // ------------------------------------------------------------------
+      if (path === '/canon/search' && req.method === 'GET') {
+        return await handleCanonSearch(url, env);
+      }
+
+      // ------------------------------------------------------------------
       // USCP telemetry sink — games phone home here (opt-in on their side)
       // ------------------------------------------------------------------
       if (path === '/api/uscp' && req.method === 'POST') {
@@ -381,6 +391,63 @@ async function handleLobby(req: Request, env: Env): Promise<Response> {
     console.error(`lobby fell back to static: ${e?.message}`);
     return env.ASSETS.fetch(req);
   }
+}
+
+// ============================================================================
+//  Canon — semantic search over the ai-writings corpus
+// ============================================================================
+//  Every chunk of ~/projects/ai-writings was embedded with @cf/baai/bge-m3
+//  (1024-dim, cosine) into Vectorize index `ai-writings-canon` with metadata
+//  {path, chunk, text}. Here we embed the query with the same model and
+//  ask the index for its neighbors. Results are deduped by path — the best
+//  (highest-scoring) chunk speaks for its file; the rest are dropped for
+//  display. The page at /canon drinks from this endpoint.
+
+const CANON_TOP_K = 8;
+const CANON_MAX_Q = 400;
+
+async function handleCanonSearch(url: URL, env: Env): Promise<Response> {
+  const q = (url.searchParams.get('q') || '').trim().slice(0, CANON_MAX_Q);
+  if (!q) {
+    return json({ ok: true, query: '', count: 0, results: [], hint: 'add ?q=… — the query is embedded with bge-m3 and matched against the ai-writings corpus' });
+  }
+
+  let embedding: number[];
+  try {
+    const out: any = await env.AI.run('@cf/baai/bge-m3', { text: [q] });
+    embedding = out?.data?.[0] ?? out?.embeddings?.[0];
+    if (!Array.isArray(embedding) || embedding.length === 0) {
+      return json({ ok: false, error: 'embedding failed — model returned no vector' }, 502);
+    }
+  } catch (e: any) {
+    return json({ ok: false, error: `embedding failed: ${e?.message}` }, 502);
+  }
+
+  let matches: VectorizeMatch[] = [];
+  try {
+    const res = await env.CANON.query(embedding, { topK: CANON_TOP_K, returnMetadata: 'all' });
+    matches = (res?.matches || []).filter((m: VectorizeMatch) => m.metadata?.path);
+  } catch (e: any) {
+    return json({ ok: false, error: `vectorize query failed: ${e?.message}` }, 502);
+  }
+
+  // Dedupe by path, keeping the best chunk per file (matches are score-desc).
+  const seen = new Set<string>();
+  const results = matches
+    .filter((m) => {
+      const p = m.metadata!.path as string;
+      if (seen.has(p)) return false;
+      seen.add(p);
+      return true;
+    })
+    .map((m) => ({
+      path: m.metadata!.path as string,
+      chunk: m.metadata!.chunk as number | null,
+      text: m.metadata!.text as string,
+      score: m.score,
+    }));
+
+  return json({ ok: true, query: q, count: results.length, results });
 }
 
 // ============================================================================

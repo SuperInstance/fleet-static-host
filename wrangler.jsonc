@@ -9,11 +9,22 @@
     "run_worker_first": [
       "/",
       "/api/*",
+      "/canon/search",
       "/papers",
       "/papers/*",
       "/writings",
       "/writings/*"
     ]
+  },
+  "vectorize": [
+    {
+      "binding": "CANON",
+      "index_name": "ai-writings-canon",
+      "remote": true
+    }
+  ],
+  "ai": {
+    "binding": "AI"
   },
   "d1_databases": [
     {
