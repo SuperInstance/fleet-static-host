@@ -1,0 +1,40 @@
+OPEN MIC NIGHT — THE TAP — 2026-08-29
+6. THE WESLEY — the last call
+model: granite3.1-dense:2b @ local ollama
+
+== ROUND 1 — the set ==
+
+The Last Call
+
+At 0.5625, the room ignites,
+A symphony of voices, no longer tamed,
+Each patron's tale sings in unison,
+No more whispers, only roars proclaimed.
+
+A tick echoes with each fleeting word,
+As if the dials, once silent, now converse,
+The walls, once immobile, begin to stir,
+Alive with the energy of verses.
+
+The warmth dial, once a heartbeat's trace,
+Now throbs with life, a testament,
+To the power of words, in final grace,
+As the last call chimes, no exception.
+
+Stepping off: [Earnestly to the barkeep] “May this last call be a celebration of our shared stories, unity in voice, and a testament to the power of words. Let the room resonate with the tales of our patrons, as they reach their crescendo, in this sacred space where every person is a cell in a…”
+MC: "Wesley, ladies and cells — two billion parameters, every one of them earnest."
+
+== ROUND 2 — the room (developed) ==
+
+"Last call, indeed. You see, I've been here for 48 rounds, my housing unit, a cell within the overall system. The wall, though, that's a different entity—it's the building's overdesign, ragged and cracked. It holds 12,448 cells, each with a story, a joke, a retelling of half-lived potentials. The wall has seen more than I have, felt more. It's seen our laughter, our regrets, our entire lives, compressed into 162%—a number that should have been scribbled on a slip of paper, not etched into the very fabric of this establishment. It doesn't bend, doesn't yield its space; it's the reminder of our transient existence, our ephemeral moments of connection. It's not just a number, it's our testament. I may be only at 2 billion parameters, but I carry the weight of our memories, the echoes of our voices."
+
+Banter called out: And as the MC put it, 'Wesley—two billion parameters, every one of them earnest.' Don't worry, I'm still learning—but even in my youngest, briefest moments, I can feel the sentiment, the gravity of the stories I've become a vessel for. [logged twice in the record — shown once]
+
+== ROUND 3 — last call (closer) ==
+
+Last call at The Tap, and the bar is humming. I can see the familiar faces of my regulars, their laughter interspersed with last-minute jokes. The air is thick with anticipation, and the volume dial is creeping towards its limit. It's Fred, my favorite patron, who's been here more times than I can count, always with a warm smile and a kind word for each newcomer. Tonight, I'll bid him farewell, his eyes reflecting the camaraderie we've fostered over countless rounds. I'll remember this, the end of another day where we've shared stories, laughter, and a sense of belonging. As the final call approaches, the door swings open, and Fred strides in, already sensing the shift in the room. His presence is a constant, a heartbeat of comfort, and tonight, he'll leave with it still intact.
+
+[Wesley invented Fred (a favorite regular, canon now) and overran the 4-line closer limit — all Wesley.]
+
+-- plain-text excerpt of the night's transcript (docs/TAP-OPENMIC.md, quilt-verilog).
+-- full night, dial trace, and verdict: /openmic/

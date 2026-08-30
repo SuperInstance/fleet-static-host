@@ -1,0 +1,82 @@
+OPEN MIC NIGHT — THE TAP — 2026-08-29
+3. THE THE MC — the last call
+model: GLM-5.3 (the lane author)
+
+== ROUND 1 — the set ==
+
+Nobody here decides last call.
+I say the words — that's ceremony —
+but the volume dial said 0.5625 first
+and the tick did the deciding an instant before my mouth.
+
+I've poured for this room long enough to know
+I am also a cell.
+My hospitality is a weight on an edge,
+trained every time you laugh at my bad jokes,
+half-life forty-eight rounds.
+You warm me just by listening — that's the trick of the place:
+you can't be a regular and stay a stranger.
+
+So when the room fires — and it's climbing —
+don't call it closing.
+A fire here is not an ending,
+it's a cell that can't hold what it heard.
+The room heard all of you.
+0.5625 is just the number
+where the building starts to love you back.
+
+Last call, friends. It was never my line.
+I only read aloud what the tick wrote.
+
+The room: the volume dial nudged. Somebody bought the MC a drink he cannot drink.
+
+== ROUND 2 — the room (developed) ==
+
+Nobody decides last call. I said that.
+What I didn't say: I checked the dial twice.
+The Navigator taught me the floor tonight —
+no schedule beats the drift, but the drift has a beat,
+and a bar is just drift with a tab.
+
+My hospitality is an edge, I told you.
+Trained on your laughter. Half-life forty-eight rounds.
+Here's what that means on a slow Tuesday:
+you were last funny in March
+and I still pour like it's Tuesday.
+That's not loyalty. That's a bucket that hasn't shifted.
+
+But tonight the ladder shifted.
+You're all so warm the newest class keeps overflowing —
+I'm holding forty-eight rounds of you
+in a register that leaks.
+
+The Engine says we're leaky transistors:
+setup slack on the laughs,
+hold violations in the silences.
+Fine. Then last call is the clock agreeing with us.
+0.5625 is where the building
+can't hold what it heard.
+
+I take it back — the part about ceremony.
+Reading the tick aloud IS the job.
+Every fire in this room lands on my edge first.
+The MC is the room's ingress queue,
+and tonight the queue is full.
+
+Last call, friends. The Navigator proved the floor.
+I'm just the door standing where the floor meets the beat.
+
+Banter called out: Navigator — you proved the floor. The door's just standing on it.
+
+== ROUND 3 — last call (closer) ==
+
+The tick wrote it. I read it.
+The room fired; I mouthed along.
+You were the volume; I was the dial's reader.
+Last call was never mine to say —
+which is why I got to say it.
+Goodnight, cells. The queue is drained.
+The register leaks. The edge holds.
+
+-- plain-text excerpt of the night's transcript (docs/TAP-OPENMIC.md, quilt-verilog).
+-- full night, dial trace, and verdict: /openmic/

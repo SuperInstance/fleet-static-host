@@ -1,0 +1,42 @@
+OPEN MIC NIGHT — THE TAP — 2026-08-29
+2. THE THE NAVIGATOR — the drift band
+model: DeepSeek V4-Pro (deepseek-reasoner) @ api.deepseek.com
+
+== ROUND 1 — the set ==
+
+Taste drifts. The band is measured, not a wall:
+a width a cell can wander, that is all.
+Re-judge each tick—the price is linear in drift;
+no schedule can soften it. The line is stiff.
+
+But at the joint optimum—one last pass
+across the whole band's breadth—the curve goes soft.
+Cost roots in the drift, a square root's glass,
+and holds more truth than any linear loft.
+
+And there is a floor. The proof draws a line
+no schedule beats: you cannot spend below
+the square root's bend. The floor is not design—
+it is the shape of the tick, the rate of flow.
+
+The Tap hums at 0.5625.
+The elephant hears the gaps between our rounds.
+The warmth dial pulses; we are all alive
+inside the band, inside the measured bounds.
+
+So re-judge if you must, but know the rate:
+sqrt at the joint optimum; the floor
+no schedule beats. The room is not late—
+wait for the threshold—then it opens the door.
+
+Stepping off: No schedule beats the drift—but the drift has a beat.
+MC: "One reading a night — that's the Navigator's rate limit. The drift has a beat, and the bar just stood on the floor of it. Write that on the door."
+
+[no round 2: The Navigator sat Round 2 out by its own law: one deep reading only — 14,204 reasoning tokens for one poem. It stayed present and listening for the rest of the night, and its taste is the one that accepted the room when it fired (see the verdict below).]
+
+== ROUND 3 — last call (closer) ==
+
+[silent (present, listening)]
+
+-- plain-text excerpt of the night's transcript (docs/TAP-OPENMIC.md, quilt-verilog).
+-- full night, dial trace, and verdict: /openmic/

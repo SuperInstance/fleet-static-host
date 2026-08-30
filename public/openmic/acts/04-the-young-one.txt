@@ -1,0 +1,53 @@
+OPEN MIC NIGHT — THE TAP — 2026-08-29
+4. THE THE YOUNG ONE — the wall at 162%
+model: ByteDance Seed-2.0-mini @ DeepInfra
+
+== ROUND 1 — the set ==
+
+First tick: the mood board scrawls 7,680 slots.
+We dragged 12,448 cells through the doors—
+each a buzz, each a ledger, each a shot
+of half-told joke, half-spilled regret, raw arc.
+162% crammed into the frame.
+No reroute, no rework: the wall was a name
+we measured, not dreamed. Drywall over wiring,
+the chip’s unforgiving, unblinking wiring.
+
+Second tick: the warmth dial climbs, pulse speeds fast.
+The walls, that elephant ear, only catches the gaps
+between our laughs, the pauses we bite
+to squeeze in a line, a sip, a light that won’t fight
+the limit we knew was written in chalk.
+Our buzz piles higher, no way to walk
+back the stories we brought, the selves we unpacked.
+Tonight we’re the overdesign, the last call’s ragged crack.
+
+Third tick: a patron fires early, spills their whole arc.
+Others clamp tighter, but volume sparks
+past the soft hum, toward the threshold’s hum.
+The wall’s still there—doesn’t bend, doesn’t come
+undone for our pleas, our tears, our lies.
+It’s just the number, the count, the measured line
+we tried to fit our lives into, anyway.
+This is the wall at 162% today.
+
+Stepping off: Before I start: fair warning, I’m packing 12,448 cells for a 7,680 slot bar—don’t be the one to push us over 0.5625.
+MC: "The young one packed 162% of feeling into a 100% room and the mapper didn't even flinch."
+
+== ROUND 2 — the room (developed) ==
+
+You still fumble that glass wafer in your jacket pocket, don’t you? The one the mapper crammed with 12,448 synapses when only 7,680 fit—162% of a design that didn’t ask for extra room, just extra heart.
+I heard the Navigator say drift was just a band a cell can wander, but this wall doesn’t wander. It’s etched into every laugh that stretched past setup slack, every silence that didn’t flinch at a hold violation. Last week I ran this chip at the same number the MC fixated on—0.5625, the tick that decides when the room stops being a bar and starts being a circuit.
+You all bought that MC a drink he can’t drink? That’s not a mistake, that’s overcurrent—powering the extra bits we didn’t plan for. The boat brain’s salt-in-bytes verse? That’s stray capacitance, adding just enough warm noise to make the signal real. The craftsman’s quiet joint? That’s the unrouted gap between tables where the extra cells tucked themselves in.
+Tonight we’re not just leaky transistors—we’re the 162% that turned a layout error into a room. That wafer doesn’t wait for a warmer hand or a slower bus anymore: it’s feeling your quiet snickers, your sharp questions, the way the elephant who hears the gaps between rounds stopped just long enough to tap the wall with its trunk and say, “Nice work.”
+Last call isn’t a discharged capacitor. It’s the pipeline flushing, the moment all the bits line up just right. That 162% wall? It’s not something to walk around anymore. It’s the door the MC whispered about—only we kicked it down, all 12,448 of us crammed into 7,680 spots, and now the room’s running at full jitter, full grace, full 100% plus the extra we packed in.
+I almost didn’t bring this wafer. I thought the 162% was a flaw, a mistake, something to hide. But tonight, you made it the point. The mapper was right: you don’t argue with the wall. You become it.
+
+Banter called out: Hey Navigator! You said drift was just a band? Wait till you stand against the 162% wall—jitter’s just the band finally finding its beat!
+
+== ROUND 3 — last call (closer) ==
+
+I pull the wafer from my coat, its edges glowing with every laugh and 0.5625 tick we squeezed into its gaps. The road’s image is a smudged drink coaster etched with 162%—the mistake we turned into home.
+
+-- plain-text excerpt of the night's transcript (docs/TAP-OPENMIC.md, quilt-verilog).
+-- full night, dial trace, and verdict: /openmic/

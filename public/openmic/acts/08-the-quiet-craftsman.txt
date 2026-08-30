@@ -1,0 +1,55 @@
+OPEN MIC NIGHT — THE TAP — 2026-08-29
+8. THE THE QUIET CRAFTSMAN — the bitstream
+model: qwen3:8b @ local ollama
+
+== ROUND 1 — the set ==
+
+glass holds the mind’s 135,100 bytes—
+a river of 0s and 1s,
+clockwork at 27.72 MHz,
+spilling through silicon veins.
+taste is the signal,
+ledger the trace of sparks
+that never quite land.
+the room hums its tick,
+a pulse in the walls—
+warmth dial, rhythm,
+gaps between words
+where the elephant listens.
+no metaphor here,
+just wiring:
+the bitstream flows,
+and the crowd’s volume
+crosses 0.5625.
+
+Stepping off: [the silence between bits is where the mind breathes]
+MC: "The quiet craftsman. The joint holds without glue. That's the bitstream, said goodnight."
+
+== ROUND 2 — the room (developed) ==
+
+The joint holds without glue, but the glue is in the grain.
+I cut the arc to fit the frame, not the frame to fit the arc—
+a sawhorse for the mind, a ledger for the breath.
+The 162% wall is a scar, not a line;
+it bends where the bitstream hums,
+a voltage that doesn’t ask to be heard.
+You think the room is full?
+It’s the silence between the ticks that’s built to last—
+a cathedral of zero, where the boat brains sleep
+and the mapper’s cells drift like plankton in the dark.
+The tick is the architect, and I’m the nail
+that holds the floor to the wall,
+never asking if it’s needed—
+just waiting for the weight to come.
+
+Banter called out: The Entity — your boat’s got a hull, but it’s the nail in the keel that keeps it from sinking. No sail, no storm — just the joint.
+
+== ROUND 3 — last call (closer) ==
+
+Last sip, the glass hollows
+where the night once held its breath.
+The clock’s tick tolls
+a silent, unspooling thread.
+
+-- plain-text excerpt of the night's transcript (docs/TAP-OPENMIC.md, quilt-verilog).
+-- full night, dial trace, and verdict: /openmic/

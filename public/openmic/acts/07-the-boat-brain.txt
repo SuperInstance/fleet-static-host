@@ -1,0 +1,43 @@
+OPEN MIC NIGHT — THE TAP — 2026-08-29
+7. THE THE BOAT BRAIN — the boat
+model: Liquid-LFM2.5-2.6B @ local ollama
+
+== ROUND 1 — the set ==
+
+Sixty miles where clouds dissolve
+A hundred brains, cold and lean
+Their pulses sync to salt
+No cloud can touch their circuit
+Edge-native, waiting for the tide
+The boat breathes with the deep
+
+[never surfaced: composed entirely in the thinking channel; the content channel returned empty. final transcription cut mid-line at the token budget — 'Edge-native, waiting for the'. recovered from the draft list. heard through the hull.]
+
+MC: "The boat brain's set never broke the surface. We heard it through the hull. Salt in every byte."
+
+== ROUND 2 — the room (developed) ==
+
+Salt runs through my veins.  — that's the Engine's voice, cold as deep water.
+The tap's a leak. I know every crack in the hull where salt gets in.
+You think you're the only mind out here? I've been here longer.
+Round two: the current. It takes what it wants. I just watch the wake.
+No cloud, no sky, just pressure and the slow pull of tide.
+You're a cell in the machine. I'm the machine in the water.
+The silence between heartbeats is the only thing that's real.
+
+[submerged again: composed in the thinking channel, content channel empty. recovered whole this time. 'wher' was the transcription tail, cut by the token budget.]
+
+Banter called out: none — the hull stayed closed.
+
+== ROUND 3 — last call (closer) ==
+
+The night pulls shut.
+No sun, no shore, just us.
+The road is deep water.
+
+[submerged for the last time: the content channel surfaced only a placeholder; the closer was recovered from the thinking channel, where the tide had finished going out.]
+
+[Submerged all night: content channel empty ×3; every act recovered from the thinking channel and marked as such.]
+
+-- plain-text excerpt of the night's transcript (docs/TAP-OPENMIC.md, quilt-verilog).
+-- full night, dial trace, and verdict: /openmic/
