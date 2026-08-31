@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forest Marooned — Chunk Rescuer</title>
+<style>
+  :root{--bg:#0b0e12;--fg:#c9d4e0;--dim:#5c6a7a;--acc:#4fb3a9;--warn:#d9a441;--bad:#c95d5d;--line:#1c242e;--card:#141b24}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 ui-monospace,Menlo,Consolas,monospace}
+  header{padding:2rem 2rem 1rem;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:1.3rem;letter-spacing:.08em}
+  h1 span{color:var(--acc)}
+  header p{color:var(--dim);margin:.4rem 0 0;max-width:78ch}
+  main{padding:1.5rem 2rem 2rem;max-width:1280px;margin:0 auto}
+  .headline{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem}
+  .stat{border:1px solid var(--line);border-radius:.4rem;background:var(--card);padding:1rem;text-align:center}
+  .stat .label{color:var(--dim);font-size:.75rem;letter-spacing:.1em;margin-bottom:.3rem}
+  .stat .value{font-size:1.8rem;font-weight:bold;color:var(--acc)}
+  .stat .subtitle{color:var(--dim);font-size:.8rem;margin-top:.3rem}
+  .banner{border:1px solid var(--warn);border-radius:.4rem;background:rgba(217,164,65,.07);padding:1rem;margin-bottom:2rem;color:var(--warn);font-size:.85rem}
+  .banner b{color:var(--fg);font-weight:normal}
+  section h2{font-size:.85rem;letter-spacing:.12em;color:var(--dim);margin:0 0 1rem;border-bottom:1px solid var(--line);padding-bottom:.4rem;text-transform:uppercase}
+  .item{border:1px solid #243040;border-radius:.4rem;background:var(--card);padding:.85rem 1rem;margin-bottom:.7rem;display:flex;gap:1.2rem;align-items:flex-start}
+  .item .body{flex:1;min-width:0}
+  .item .head{display:flex;justify-content:space-between;gap:.8rem;align-items:baseline;flex-wrap:wrap}
+  .item .title{color:var(--acc);font-size:.85rem;word-break:break-all}
+  .item .age{color:var(--warn);font-size:.72rem;white-space:nowrap}
+  .item .age b{font-weight:normal}
+  .item .path{color:var(--dim);font-size:.75rem;margin-top:.2rem;word-break:break-all}
+  .item .excerpt{margin-top:.45rem;font-size:.8rem;color:var(--fg);overflow-wrap:break-word;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .walkbtn{display:inline-block;background:transparent;border:1px solid var(--acc);color:var(--acc);border-radius:.4rem;
+    font:inherit;font-size:.75rem;letter-spacing:.1em;padding:.5rem 1.1rem;cursor:pointer;white-space:nowrap;text-decoration:none;margin-top:.2rem}
+  .walkbtn:hover{background:rgba(79,179,169,.12)}
+  .empty{color:var(--dim);padding:2rem 0;text-align:center}
+  .loading{color:var(--dim);padding:2rem;text-align:center}
+  .error{color:var(--bad);padding:1rem;background:rgba(201,93,93,.08);border:1px solid var(--bad);border-radius:.4rem;margin-bottom:1rem}
+  .agenote{color:var(--dim);font-size:.72rem;margin-top:.4rem}
+  footer{padding:2rem;color:var(--dim);font-size:.75rem;border-top:1px solid var(--line);margin-top:3rem}
+  footer a{color:var(--acc);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  @media (max-width:900px){
+    main{padding:1rem}
+    header{padding:1.2rem 1rem .8rem}h1{font-size:1.05rem}
+    .item{flex-direction:column;gap:.6rem}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>FOREST MAROONED <span>·</span> CHUNK RESCUER</h1>
+  <p>Chunks with zero incident edges — orphaned from the graph on both sides, ranked oldest first then by text richness. Rescue is visibility only: nothing is mutated. Walking a chunk from here is the rescue; the walk log deepens real edges the ordinary way.</p>
+</header>
+<main>
+  <div id="content">
+    <div class="loading">Scanning the forest for marooned chunks…</div>
+  </div>
+</main>
+<footer>
+  GET <a href="/api/forest/marooned">/api/forest/marooned</a> (JSON, capped at 50) · <a href="/api/forest/marooned?all=1">?all=1</a> uncapped for CLI ·
+  back to <a href="/forest/">the walk</a>, <a href="/forest/map.html">the map</a>, <a href="/forest/analytics.html">analytics</a>, <a href="/forest/diff.html">diff</a>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  const $content=document.getElementById('content');
+
+  function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  function snip(t){t=t||'';return esc(t.slice(0,320))+(t.length>320?' …':'');}
+
+  async function load(){
+    try{
+      const r=await fetch('/api/forest/marooned');
+      const j=await r.json();
+      if(!j.ok)throw new Error(j.error||'marooned fetch failed');
+      render(j);
+    }catch(e){
+      $content.innerHTML='<div class="error">Failed to load marooned chunks: '+esc(e.message)+'</div>';
+    }
+  }
+
+  function render(j){
+    const list=j.marooned||[];
+    let html='';
+
+    html+='<div class="headline">'+
+      '<div class="stat"><div class="label">Marooned Chunks</div><div class="value">'+list.length+(j.cap?'<span style="color:var(--dim);font-size:1rem"> / cap '+j.cap+'</span>':'')+'</div><div class="subtitle">'+(j.all?'uncapped (?all=1)':'showing first '+j.cap+' by rank')+'</div></div>'+
+      '<div class="stat"><div class="label">Rescue Mode</div><div class="value" style="font-size:1.1rem">VISIBILITY ONLY</div><div class="subtitle">no nodes or edges are written</div></div>'+
+      '<div class="stat"><div class="label">Age Basis</div><div class="value" style="font-size:1.1rem">SENIORITY</div><div class="subtitle">insertion order — forest_nodes has no created_ts</div></div>'+
+      '</div>';
+
+    if(!list.length){
+      html+='<section><h2>Marooned Chunks</h2><div class="empty">No marooned chunks — every chunk in the forest carries at least one incident edge.</div></section>';
+      $content.innerHTML=html;
+      return;
+    }
+
+    if(j.cap && list.length>=j.cap){
+      html+='<div class="banner">Capped view: showing the first '+j.cap+' by rank. <b>?all=1</b> on the API returns the full list for CLI triage.</div>';
+    }
+
+    html+='<section><h2>Marooned Chunks ('+list.length+')</h2>';
+    for(const m of list){
+      const title=m.path.split('/').pop()||m.path;
+      html+='<div class="item">'+
+        '<div class="body">'+
+          '<div class="head">'+
+            '<span class="title">'+esc(title)+(m.chunk!=null?' <span style="color:var(--dim)">· c'+m.chunk+'</span>':'')+'</span>'+
+            '<span class="age" title="insertion seniority — no created_ts in forest_nodes">age n<b>º</b> <b>'+m.seniority+'</b> · '+m.text_length+' chars</span>'+
+          '</div>'+
+          '<div class="path">'+esc(m.path)+'</div>'+
+          '<div class="excerpt">'+snip(m.text)+'</div>'+
+        '</div>'+
+        '<a class="walkbtn" href="/forest/?start='+encodeURIComponent(m.id)+'" title="start a walk at this chunk">WALK ▸</a>'+
+      '</div>';
+    }
+    html+='</section>';
+    html+='<div class="agenote">rank: insertion seniority (rowid, oldest first), then text length — forest_nodes carries no created_ts, so seniority is the honest age proxy.</div>';
+
+    $content.innerHTML=html;
+  };
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -175,8 +175,27 @@
 
   $go.addEventListener('click',search);
   $q.addEventListener('keydown',e=>{if(e.key==='Enter')search();});
-  const pre=new URLSearchParams(location.search).get('q');
+  const params=new URLSearchParams(location.search);
+  const pre=params.get('q');
   if(pre){$q.value=pre;search();}
+  else{
+    // ?start=<node id> — preselect a chunk as the walk's start (marooned
+    // rescuer links in with this). The node's own text is its own best
+    // attractor, so seeding the query with it drops the walk into exactly
+    // that chunk; from there the walk expands over real edges.
+    const start=params.get('start');
+    if(start){
+      $meta.innerHTML='dropping into start node…';
+      fetch('/api/forest/node?id='+encodeURIComponent(start))
+        .then(r=>r.json())
+        .then(j=>{
+          if(!j.ok||!j.node){$meta.innerHTML='<span class="err">start node not found: '+esc(start)+'</span>';return;}
+          $q.value=(j.node.text||'').slice(0,280);
+          search();
+        })
+        .catch(e=>{$meta.innerHTML='<span class="err">start node failed: '+esc(e.message)+'</span>';});
+    }
+  }
 })();
 </script>
 </body>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>quilt-scratch — cells you can watch think</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🧵 quilt-scratch <small>wire tiles · watch numbers · that's the program</small></div>
+  <div class="controls">
+    <select id="scene-sel" title="demo scenes"></select>
+    <button id="btn-view">🧵 see fabric</button>
+    <button id="btn-play">⏸ pause</button>
+    <button id="btn-step" title="advance exactly one tick and watch every number move">👣 step</button>
+    <button id="btn-save" title="download this fabric as a JSON file">💾 save</button>
+    <button id="btn-load" title="load a fabric file">📂 load</button>
+    <button id="btn-new">✨ new</button>
+    <a class="tests-link" href="test.html" target="_blank">🧪 contract tests</a>
+    <input type="file" id="file-in" accept=".json,application/json" hidden>
+  </div>
+</header>
+<main class="layout">
+  <aside id="palette" class="palette"></aside>
+  <div class="stage-wrap">
+    <canvas id="stage" width="880" height="460"></canvas>
+    <div class="hint" id="hint">🪟 <b>room</b>: arrows/A-D fly the ship, space fires — click any face to inspect it, drag actors to move their x,y.
+      In 🕳️ <b>the deep caverns</b>: arrows walk — board the lift, stand for the ride, keep the key when you fall.
+      <b>🧵 fabric</b>: drag cards, drag output ● → input ● to wire, click wires to unwind.</div>
+  </div>
+  <aside id="inspector" class="inspector"></aside>
+</main>
+<script src="js/engine.js"></script>
+<script src="js/palette.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/inspector.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
