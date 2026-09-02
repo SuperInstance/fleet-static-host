@@ -10,6 +10,7 @@
       "/",
       "/api/*",
       "/ai/embed",
+      "/ai/tts",
       "/canon/search",
       "/forest/search",
       "/mcp",

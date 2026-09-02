@@ -304,6 +304,13 @@ export default {
         return await handleEmbed(req, env);
       }
 
+      // Fleet-radio voice bridge: same rationale as /ai/embed — the OAuth
+      // token on the box can't call Workers AI REST directly, so TTS runs
+      // through this binding. POST {text, voice?} → audio/mpeg bytes.
+      if (path === '/ai/tts' && req.method === 'POST') {
+        return await handleTts(req, env);
+      }
+
       // ------------------------------------------------------------------
       // USCP telemetry sink — games phone home here (opt-in on their side)
       // ------------------------------------------------------------------
@@ -515,6 +522,40 @@ const CANON_HEBBIAN_GAIN = 0.05;
 // Embed bridge caps: 64 texts × 2000 chars per call (vectorizer batch size).
 const EMBED_MAX_TEXTS = 64;
 const EMBED_MAX_CHARS = 2000;
+const TTS_MAX_CHARS = 1200;
+const TTS_VOICES = new Set([
+  'asteria', 'luna', 'stella', 'athena', 'hera', 'orion', 'arcas', 'perseus', 'angus', 'orpheus',
+]);
+
+async function handleTts(req: Request, env: Env): Promise<Response> {
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ ok: false, error: 'body must be JSON {text, voice?}' }, 400);
+  }
+  const text = String(body?.text || '').trim().slice(0, TTS_MAX_CHARS);
+  if (!text) return json({ ok: false, error: 'text is required' }, 400);
+  const voice = String(body?.voice || 'asteria');
+  if (!TTS_VOICES.has(voice)) {
+    return json({ ok: false, error: `voice must be one of: ${[...TTS_VOICES].join(', ')}` }, 400);
+  }
+  try {
+    const res: any = await env.AI.run('@cf/deepgram/aura-1' as any, { text, voice });
+    // Model may return raw binary or {audio: base64} depending on schema version.
+    if (res instanceof ArrayBuffer || res instanceof ReadableStream || (typeof res === 'object' && res.byteLength)) {
+      const buf = res instanceof ReadableStream ? await new Response(res).arrayBuffer() : (res as ArrayBuffer);
+      return new Response(buf, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
+    }
+    if (res?.audio) {
+      const bytes = Uint8Array.from(atob(res.audio), (c) => c.charCodeAt(0));
+      return new Response(bytes, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' } });
+    }
+    return json({ ok: false, error: 'tts failed — unexpected model response shape' }, 502);
+  } catch (e: any) {
+    return json({ ok: false, error: `tts failed: ${e?.message}` }, 502);
+  }
+}
 
 async function handleEmbed(req: Request, env: Env): Promise<Response> {
   let body: any;
