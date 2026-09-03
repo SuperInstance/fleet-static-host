@@ -35,8 +35,15 @@ content rides quilt**. Live at `fleet-static-host.casey-digennaro.workers.dev`.
   deployed as a **cold fallback**: if D1 ever misses or errors, the Worker
   serves the asset copy instead. No link rot is possible — `/papers/<slug>` and
   `/writings/<slug>` URLs are unchanged (superinstance.ai and luciddreamer
-  links keep working), and `run_worker_first` only routes `/`, `/papers*`,
-  `/writings*`, `/api/*` to the Worker.
+  links keep working).
+
+> **Update 2026-09-03 (audit round 6):** `run_worker_first` has since grown —
+> `/ai/embed`, `/ai/tts`, `/canon/search`, `/forest/search`, `/mcp` and
+> `/.well-known/mcp` are also Worker-routed now (see `wrangler.jsonc`). The
+> Worker is no longer just the content shelf: it also hosts the canon/forest
+> search surfaces, an MCP JSON-RPC bridge (`src/mcp.ts`, `/mcp`), TTS via the
+> AI binding (`POST /ai/tts`), and USCP tooling (`src/uscp.ts`). Those live in
+> the repo; the split described above still holds for the original shelf.
 
 ## The quilt engine
 
@@ -96,18 +103,24 @@ matching the `QUILT_SEED_KEY` Worker secret.
 ```
 src/
   index.ts       Worker: routing (worker-first for content), quilt reads/writes, API, assets fallback
-  quilt.ts       vendored quilt-cloudflare engine @ 3c293f6 (verbatim, attributed)
+  quilt.ts       vendored quilt-cloudflare engine @ 3c293f6 (verbatim, attributed — re-verified by diff, audit r6)
   render.ts      render layer: original CSS/template port + quilt-rendered lobby + trails log
+  mcp.ts         MCP JSON-RPC 2.0 bridge at /mcp (see tools/MCP-BRIDGE.md; tests in tests/mcp.test.mjs)
+  uscp.ts        USCP tooling (tests in tests/uscp.test.mjs)
 migrations/
   0001_quilt_schema.sql   quilt's D1 schema (cells, edges, history, listeners, ai_usage)
+  0002..0006_*.sql        forest walks, sessions, refresh, MCP audit tables
 seed/
   build_seed.py  markdown -> quilt Sheet JSON (reuses build_site.py's pipeline exactly);
                  the trails sheet is built from build_site.py's TRAIL_LOG (single source)
   push.sh        POSTs sheets to /api/quilt/sheet (needs QUILT_SEED_KEY)
   sheets/        generated Sheet JSON (committed so re-seeding needs no Python)
 public/          assets: scrap/, mist/, ternary/ (builds) + papers/, writings/, index.html, 404.html (cold fallback)
+                 + canon/, forest/, demos/, openmic/, ops/, quilt/ (added after the shelf split)
+tools/           forest builder + Hebbian notes, MCP bridge docs, canon dedupe/embed QC
 build_site.py    original static builder — markdown pipeline + fallback generator + TRAIL_LOG
-wrangler.jsonc   main + D1 binding (quilt-fleet-db) + assets with run_worker_first
+wrangler.jsonc   main + D1 binding (quilt-fleet-db) + assets (run_worker_first) + Vectorize (canon)
+                 + AI binding + hourly cron
 ```
 
 ## Ops
