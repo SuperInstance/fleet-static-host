@@ -37,6 +37,15 @@ content rides quilt**. Live at `fleet-static-host.casey-digennaro.workers.dev`.
   `/writings/<slug>` URLs are unchanged (superinstance.ai and luciddreamer
   links keep working).
 
+> **Update 2026-09-03 (audit round 16):** re-verified by re-run — `npm test` 34/34,
+> vendored `src/quilt.ts` re-diffed against upstream `src/worker.ts` @ `3c293f6`
+> (pure removals: entrypoint/MCP demo only, zero additions), live endpoints all
+> healthy (incl. `/mcp` POST → auth challenge as designed, `/ai/tts` + `/ai/embed`
+> POST-routed). One drift found: live D1 now carries a **fifth sheet, `telemetry`**
+> (single cell `uscp.block_mined`, from the USCP work) — not in the sheet list
+> above and not read by any public page. Booked here rather than rewriting the
+> original shelf-split story.
+
 > **Update 2026-09-03 (audit round 6):** `run_worker_first` has since grown —
 > `/ai/embed`, `/ai/tts`, `/canon/search`, `/forest/search`, `/mcp` and
 > `/.well-known/mcp` are also Worker-routed now (see `wrangler.jsonc`). The
