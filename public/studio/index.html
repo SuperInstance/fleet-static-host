@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHIAROSCURO — STUDIO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Silkscreen&family=IBM+Plex+Mono&family=Fira+Code&family=Orbitron&family=Libre+Barcode+39&family=MedievalSharp&family=Rubik+Glitch&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #050507; font-family: 'Courier New', monospace; }
+#stage { position: absolute; inset: 0 350px 0 0; display: flex; align-items: center; justify-content: center; }
+canvas { max-width: 100%; max-height: 100%; }
+#panel { position: absolute; top: 0; right: 0; bottom: 0; width: 350px; background: rgba(10,10,14,0.96); border-left: 1px solid #26263a; overflow-y: auto; padding: 12px 14px 96px; color: #b9b9c9; scrollbar-width: thin; }
+h1 { font-size: 13px; letter-spacing: 3px; color: #8f7fff; margin-bottom: 8px; }
+.group { border: 1px solid #20202e; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+.gtitle { font-size: 10px; letter-spacing: 2px; color: #6a6a88; text-transform: uppercase; cursor: pointer; user-select: none; }
+.row { display: flex; align-items: center; justify-content: space-between; margin: 5px 0; gap: 8px; }
+.row label { font-size: 11px; color: #9a9ab0; flex: 0 0 96px; }
+.row input[type=range] { flex: 1; accent-color: #8f7fff; height: 14px; }
+.row .val { font-size: 10px; color: #6a6a88; width: 32px; text-align: right; }
+.row select, .row input[type=text] { flex: 1; background: #16161f; color: #c9c9dd; border: 1px solid #2a2a3a; border-radius: 4px; font-family: inherit; font-size: 11px; padding: 3px; }
+.row input[type=color] { width: 40px; height: 20px; border: none; background: none; }
+.row input[type=checkbox] { accent-color: #8f7fff; }
+#presets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+#presets button { background: #191926; color: #a9a9c5; border: 1px solid #2c2c40; border-radius: 4px; font-family: inherit; font-size: 10px; padding: 4px 7px; cursor: pointer; }
+#presets button:hover { background: #2a2a44; color: #fff; }
+#actions { position: sticky; bottom: 0; background: rgba(10,10,14,0.97); padding: 8px 0 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+#actions button { flex: 1 1 46%; background: #26264a; color: #cfcfe6; border: 1px solid #3d3d6a; border-radius: 6px; font-family: inherit; font-size: 10px; padding: 7px 2px; cursor: pointer; letter-spacing: 1px; }
+#actions button:hover { background: #38386a; }
+#actions button.gold { background: #3d2f10; border-color: #8a6a20; color: #ffd166; }
+#loadjson { display: none; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<div id="panel">
+  <h1>∷ CHIAROSCURO STUDIO</h1>
+  <div class="group"><div class="gtitle">Presets</div><div id="presets"></div></div>
+  <div class="group"><div class="gtitle">Engine</div><div id="c-engine"></div></div>
+  <div class="group"><div class="gtitle">Grid &amp; Glyphs</div><div id="c-grid"></div></div>
+  <div class="group"><div class="gtitle">Image</div><div id="c-image"></div></div>
+  <div class="group"><div class="gtitle">Sculpt (Relief)</div><div id="c-sculpt"></div></div>
+  <div class="group"><div class="gtitle">Color</div><div id="c-color"></div></div>
+  <div class="group"><div class="gtitle">Motion &amp; Time</div><div id="c-motion"></div></div>
+  <div class="group"><div class="gtitle">Atmosphere</div><div id="c-atmo"></div></div>
+  <div id="actions">
+    <button id="btn-random">⤫ RANDOM</button>
+    <button id="btn-share">⇪ SHARE</button>
+    <button id="btn-fs">⛶ FULLSCREEN</button>
+    <button id="btn-save">⇩ .JSON</button>
+    <button id="btn-export" class="gold">⇩ EXPORT RENDERER .HTML</button>
+    <button id="btn-term" class="gold">⇩ EXPORT TERMINAL APP .PY</button>
+    <input type="file" id="loadjson" accept=".json">
+    <button id="btn-load" style="flex-basis:100%">⇧ LOAD SETTINGS .JSON</button>
+  </div>
+</div>
+<script>
+"use strict";
+// ============================================================
+// CHIAROSCURO STUDIO v2
+// Five render engines (entire methodologies), 45+ parameters,
+// presets, and EXPORT: your tuned renderer as a standalone file.
+// ============================================================
+
+const MOCK = new URLSearchParams(location.search).has('mock');
+const video = document.createElement('video');
+const buf = document.createElement('canvas');
+const bctx = buf.getContext('2d', { willReadFrequently: true });
+const bufHi = document.createElement('canvas');   // hi-res buffer for pixel/braille engines
+const bctxHi = bufHi.getContext('2d', { willReadFrequently: true });
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+const P = {};
+const FONT_MAP = { courier: "'Courier New', monospace", lucida: "'Lucida Console', monospace", consolas: "'Consolas', monospace", dejavu: "'DejaVu Sans Mono', monospace", serif: "Georgia, serif",
+  monospace: "monospace", menlo: "'Menlo', monospace", monaco: "'Monaco', monospace", andale: "'Andale Mono', monospace", liberation: "'Liberation Mono', monospace",
+  comicsans: "'Comic Sans MS', 'Comic Sans', cursive", impact: "Impact, 'Arial Black', sans-serif", papyrus: "Papyrus, fantasy", copperplate: "'Copperplate', 'Copperplate Gothic Light', fantasy",
+  brushscript: "'Brush Script MT', cursive", times: "'Times New Roman', serif", palatino: "Palatino, 'Palatino Linotype', serif", garamond: "Garamond, serif",
+  wingdings: "'Wingdings', 'Wingdings 2', monospace", webdings: "Webdings, monospace", symbol: "Symbol, monospace", segoe: "'Segoe UI Symbol', sans-serif",
+  ps2p: "'Press Start 2P', monospace", vt323: "'VT323', monospace", silkscreen: "'Silkscreen', monospace", plexmono: "'IBM Plex Mono', monospace",
+  firacode: "'Fira Code', monospace", orbitron: "'Orbitron', monospace", barcode39: "'Libre Barcode 39', cursive", medieval: "'MedievalSharp', cursive", rubikglitch: "'Rubik Glitch', monospace" };
+const FONT_LABELS = { courier: 'Courier New — the classic terminal', lucida: 'Lucida Console — chunky DOS', consolas: 'Consolas — clean modern mono', dejavu: 'DejaVu Sans Mono — Linux native', serif: 'Georgia — soft serif (wild)',
+  monospace: 'System monospace', menlo: 'Menlo — Mac terminal', monaco: 'Monaco — classic Mac', andale: 'Andale Mono', liberation: 'Liberation Mono',
+  comicsans: 'Comic Sans MS — the people’s font', impact: 'Impact — meme weight', papyrus: 'Papyrus — yes, really', copperplate: 'Copperplate — engraved plaque',
+  brushscript: 'Brush Script — your face, signed', times: 'Times New Roman — newspaper', palatino: 'Palatino — bookish', garamond: 'Garamond — old book older',
+  wingdings: 'Wingdings — pictographs (every glyph a doodad)', webdings: 'Webdings — more pictographs', symbol: 'Symbol — greek math soup', segoe: 'Segoe UI Symbol — emoji-adjacent',
+  ps2p: 'Press Start 2P — 8-bit arcade (webfont)', vt323: 'VT323 — glass terminal (webfont)', silkscreen: 'Silkscreen — pixel LCD (webfont)', plexmono: 'IBM Plex Mono — engineer’s mono (webfont)',
+  firacode: 'Fira Code — ligatures (webfont)', orbitron: 'Orbitron — sci-fi (webfont)', barcode39: 'Libre Barcode 39 — your face, scannable (webfont)', medieval: 'MedievalSharp — illuminated (webfont)', rubikglitch: 'Rubik Glitch — broken signs (webfont)' };
+
+// ---------- presets (old 12 + engine showcases) ----------
+const PRESETS = {
+  '① The Original': { engine:'glyph', density:100, cellAspect:60, glyphSize:100, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:0, contrast:25, gamma:100, blackPt:0, whitePt:255, invert:false, ramp:'classic', rampCustom:'', toneAmt:100, edgeAmt:0, edgeGain:8, edgeStyle:'sobel', edgeColor:'source', brailleAmt:0, dotGain:50, dither:0, posterize:0, lightAngle:315, relief:0, edgeThresh:4, colMode:'original', hue:120, sat:100, temp:0, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#050507', trail:0, smooth:0, glitch:0, grain:0, scan:0, vignette:0, bloom:0 },
+  '② The Sculptor': { engine:'glyph', density:100, cellAspect:60, glyphSize:100, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:0, contrast:25, gamma:100, blackPt:0, whitePt:255, invert:false, ramp:'fine', rampCustom:'', toneAmt:100, edgeAmt:100, edgeGain:8, edgeStyle:'sobel', edgeColor:'source', brailleAmt:45, dotGain:50, dither:0, posterize:0, lightAngle:315, relief:55, edgeThresh:4, colMode:'original', hue:120, sat:100, temp:0, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#030304', trail:0, smooth:0, glitch:0, grain:0, scan:0, vignette:0, bloom:0 },
+  'Green Matrix':   { engine:'glyph', density:130, cellAspect:55, glyphSize:95, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:5, contrast:40, gamma:90, blackPt:0, whitePt:255, invert:false, ramp:'classic', rampCustom:'', toneAmt:100, edgeAmt:20, edgeGain:10, edgeStyle:'sobel', edgeColor:'source', brailleAmt:20, dotGain:50, dither:30, posterize:0, lightAngle:315, relief:25, edgeThresh:4, colMode:'phosphor', hue:120, sat:100, temp:0, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#000f00', trail:35, smooth:0, glitch:0, grain:35, scan:60, vignette:55, bloom:8 },
+  'Amber Terminal': { engine:'glyph', density:110, cellAspect:60, glyphSize:100, font:'lucida', jitter:0, mirror:true, kaleido:0, zoom:100, fps:24, brightness:0, contrast:45, gamma:85, blackPt:0, whitePt:255, invert:false, ramp:'fine', rampCustom:'', toneAmt:100, edgeAmt:15, edgeGain:9, edgeStyle:'sobel', edgeColor:'source', brailleAmt:10, dotGain:50, dither:0, posterize:0, lightAngle:315, relief:20, edgeThresh:4, colMode:'phosphor', hue:36, sat:110, temp:0, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#140a00', trail:20, smooth:0, glitch:0, grain:25, scan:70, vignette:60, bloom:6 },
+  'Ink & Paper':    { engine:'glyph', density:120, cellAspect:60, glyphSize:100, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:10, contrast:35, gamma:110, blackPt:0, whitePt:255, invert:true, ramp:'fine', rampCustom:'', toneAmt:100, edgeAmt:35, edgeGain:11, edgeStyle:'sobel', edgeColor:'source', brailleAmt:15, dotGain:50, dither:20, posterize:0, lightAngle:315, relief:35, edgeThresh:3, colMode:'ink', hue:220, sat:0, temp:0, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#f2efe6', trail:0, smooth:0, glitch:0, grain:15, scan:0, vignette:0, bloom:0 },
+  'Blueprint':      { engine:'glyph', density:100, cellAspect:60, glyphSize:100, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:0, contrast:50, gamma:80, blackPt:0, whitePt:255, invert:false, ramp:'minimal', rampCustom:'', toneAmt:25, edgeAmt:100, edgeGain:14, edgeStyle:'sobel', edgeColor:'white', brailleAmt:0, dotGain:50, dither:0, posterize:0, lightAngle:135, relief:70, edgeThresh:3, colMode:'duotone', hue:220, sat:0, temp:0, shadowCol:'#062a66', highCol:'#cfe6ff', bgCol:'#031233', trail:0, smooth:0, glitch:0, grain:8, scan:0, vignette:30, bloom:0 },
+  'Neon Noir':      { engine:'glyph', density:120, cellAspect:55, glyphSize:105, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:-5, contrast:55, gamma:85, blackPt:0, whitePt:255, invert:false, ramp:'blocks', rampCustom:'', toneAmt:80, edgeAmt:60, edgeGain:10, edgeStyle:'sobel', edgeColor:'source', brailleAmt:35, dotGain:50, dither:0, posterize:0, lightAngle:45, relief:65, edgeThresh:4, colMode:'duotone', hue:300, sat:0, temp:0, shadowCol:'#2a004f', highCol:'#00f6ff', bgCol:'#05000c', trail:15, smooth:0, glitch:5, grain:30, scan:25, vignette:65, bloom:14 },
+  'Ghost':          { engine:'glyph', density:90, cellAspect:60, glyphSize:100, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:20, brightness:0, contrast:30, gamma:140, blackPt:0, whitePt:255, invert:true, ramp:'stars', rampCustom:'', toneAmt:100, edgeAmt:25, edgeGain:8, edgeStyle:'sobel', edgeColor:'source', brailleAmt:30, dotGain:50, dither:15, posterize:0, lightAngle:270, relief:40, edgeThresh:5, colMode:'phosphor', hue:180, sat:30, temp:0, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#0b0d12', trail:30, smooth:30, glitch:0, grain:20, scan:0, vignette:45, bloom:10 },
+  'Wireframe':      { engine:'glyph', density:80, cellAspect:60, glyphSize:110, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:0, contrast:55, gamma:70, blackPt:0, whitePt:255, invert:false, ramp:'minimal', rampCustom:'', toneAmt:0, edgeAmt:100, edgeGain:15, edgeStyle:'sobel', edgeColor:'white', brailleAmt:0, dotGain:50, dither:0, posterize:0, lightAngle:315, relief:80, edgeThresh:5, colMode:'phosphor', hue:150, sat:80, temp:0, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#020403', trail:0, smooth:0, glitch:0, grain:0, scan:0, vignette:35, bloom:4 },
+  'Molten':         { engine:'glyph', density:110, cellAspect:60, glyphSize:100, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:0, contrast:40, gamma:95, blackPt:0, whitePt:255, invert:false, ramp:'blocks', rampCustom:'', toneAmt:90, edgeAmt:40, edgeGain:9, edgeStyle:'emboss', edgeColor:'source', brailleAmt:20, dotGain:50, dither:25, posterize:0, lightAngle:90, relief:50, edgeThresh:4, colMode:'heatmap', hue:30, sat:120, temp:20, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#0c0200', trail:10, smooth:0, glitch:0, grain:20, scan:0, vignette:50, bloom:12 },
+  'Deep Sea':       { engine:'glyph', density:95, cellAspect:62, glyphSize:100, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:20, brightness:-10, contrast:35, gamma:120, blackPt:0, whitePt:255, invert:false, ramp:'runes', rampCustom:'', toneAmt:85, edgeAmt:45, edgeGain:10, edgeStyle:'sobel', edgeColor:'source', brailleAmt:25, dotGain:50, dither:10, posterize:0, lightAngle:200, relief:55, edgeThresh:4, colMode:'duotone', hue:200, sat:0, temp:-30, shadowCol:'#001220', highCol:'#7fd4c1', bgCol:'#01080f', trail:20, smooth:20, glitch:0, grain:15, scan:0, vignette:60, bloom:6 },
+  'Pulp Comic':     { engine:'glyph', density:70, cellAspect:60, glyphSize:125, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:10, contrast:65, gamma:75, blackPt:0, whitePt:255, invert:false, ramp:'blocks', rampCustom:'', toneAmt:100, edgeAmt:70, edgeGain:13, edgeStyle:'sobel', edgeColor:'black', brailleAmt:0, dotGain:50, dither:0, posterize:4, lightAngle:315, relief:45, edgeThresh:6, colMode:'original', hue:120, sat:170, temp:0, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#fff8ee', trail:0, smooth:0, glitch:0, grain:10, scan:0, vignette:0, bloom:0 },
+  'Silver Halide':  { engine:'pixel', density:120, cellAspect:60, glyphSize:100, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:0, contrast:30, gamma:100, blackPt:0, whitePt:255, invert:false, ramp:'classic', rampCustom:'', toneAmt:100, edgeAmt:0, edgeGain:8, edgeStyle:'sobel', edgeColor:'source', brailleAmt:0, dotGain:50, dither:0, posterize:0, lightAngle:315, relief:0, edgeThresh:4, colMode:'original', hue:120, sat:15, temp:-10, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#000000', trail:0, smooth:0, glitch:0, grain:30, scan:0, vignette:45, bloom:0 },
+  'Dotscape':       { engine:'braille', density:110, cellAspect:60, glyphSize:100, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:0, contrast:35, gamma:100, blackPt:0, whitePt:255, invert:false, ramp:'classic', rampCustom:'', toneAmt:0, edgeAmt:0, edgeGain:8, edgeStyle:'sobel', edgeColor:'source', brailleAmt:100, dotGain:60, dither:0, posterize:0, lightAngle:315, relief:0, edgeThresh:4, colMode:'duotone', hue:260, sat:0, temp:0, shadowCol:'#140a3a', highCol:'#e8e0ff', bgCol:'#060412', trail:0, smooth:0, glitch:0, grain:10, scan:0, vignette:35, bloom:6 },
+  'Halftone Press': { engine:'halftone', density:90, cellAspect:60, glyphSize:100, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:30, brightness:5, contrast:40, gamma:100, blackPt:0, whitePt:255, invert:false, ramp:'classic', rampCustom:'', toneAmt:100, edgeAmt:0, edgeGain:8, edgeStyle:'sobel', edgeColor:'black', brailleAmt:0, dotGain:70, dither:0, posterize:0, lightAngle:315, relief:0, edgeThresh:4, colMode:'ink', hue:220, sat:0, temp:0, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#f4f1e8', trail:0, smooth:0, glitch:0, grain:8, scan:0, vignette:0, bloom:0 },
+  'Woodcut Match':  { engine:'match', density:80, cellAspect:60, glyphSize:110, font:'courier', jitter:0, mirror:true, kaleido:0, zoom:100, fps:20, brightness:0, contrast:45, gamma:90, blackPt:0, whitePt:255, invert:false, ramp:'fine', rampCustom:'', toneAmt:100, edgeAmt:0, edgeGain:8, edgeStyle:'sobel', edgeColor:'source', brailleAmt:0, dotGain:50, dither:10, posterize:5, lightAngle:315, relief:30, edgeThresh:4, colMode:'ink', hue:220, sat:0, temp:0, shadowCol:'#0a1030', highCol:'#ffd166', bgCol:'#efe9da', trail:0, smooth:0, glitch:0, grain:12, scan:0, vignette:20, bloom:0 },
+};
+
+const DEFS = {
+  engine: [
+    { k: 'engine', label: 'Methodology', type: 'select', options: {
+      glyph: 'Glyph — tone+edge+braille (bivariate)',
+      pixel: 'Pixel — half-block photographic ▀',
+      braille: 'Braille — pure 2×4 dot image',
+      match: 'Shape-match — template-matched glyphs',
+      halftone: 'Halftone — ink dots, print press'
+    }, v: 'glyph' },
+    { k: 'ramp', label: 'Tone ramp', type: 'select', options: {
+      classic: " .:-=+*#%@@",
+      fine: " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$",
+      blocks: " ░▒▓█",
+      minimal: " .:*#",
+      stars: "·∴∗✦✱✳❋█",
+      runes: "·ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃ█",
+      binary: " 01",
+      code: " {}[]()<>/\\|=+*",
+      waves: "·≈≋▒▓█",
+      custom: ""
+    }, v: 'classic' },
+    { k: 'rampCustom', label: 'Custom ramp', type: 'text', v: '', placeholder: 'type glyphs…' },
+    { k: 'toneAmt', label: 'Tone mix', min: 0, max: 100, v: 100 },
+    { k: 'edgeAmt', label: 'Edge mix', min: 0, max: 100, v: 0 },
+    { k: 'edgeGain', label: 'Edge gain', min: 1, max: 15, v: 8 },
+    { k: 'edgeStyle', label: 'Edge detector', type: 'select', options: { sobel: 'Sobel', emboss: 'Emboss (1-side)', laplace: 'Laplacian' }, v: 'sobel' },
+    { k: 'edgeColor', label: 'Edge paint', type: 'select', options: { source: 'Source color', white: 'White', black: 'Black' }, v: 'source' },
+    { k: 'brailleAmt', label: 'Braille detail', min: 0, max: 100, v: 0 },
+    { k: 'dotGain', label: 'Dot gain', min: 0, max: 100, v: 50 },
+    { k: 'dither', label: 'Dither', min: 0, max: 100, v: 0 },
+    { k: 'posterize', label: 'Posterize levels', min: 0, max: 12, v: 0 },
+  ],
+  grid: [
+    { k: 'density', label: 'Density', min: 30, max: 200, v: 100 },
+    { k: 'cellAspect', label: 'Cell shape %', min: 40, max: 90, v: 60 },
+    { k: 'glyphSize', label: 'Glyph scale', min: 70, max: 130, v: 100 },
+    { k: 'font', label: 'Typeface', type: 'select', options: (function(){ const o={}; for (const k in FONT_LABELS) o[k]=FONT_LABELS[k]; return o; })(), v: 'courier' },
+    { k: 'jitter', label: 'Jitter', min: 0, max: 100, v: 0 },
+    { k: 'mirror', label: 'Mirror flip', type: 'check', v: true },
+    { k: 'kaleido', label: 'Kaleidoscope', min: 0, max: 4, v: 0 },
+    { k: 'zoom', label: 'Zoom', min: 100, max: 300, v: 100 },
+    { k: 'fps', label: 'FPS cap', min: 5, max: 60, v: 30 },
+  ],
+  image: [
+    { k: 'brightness', label: 'Brightness', min: -100, max: 100, v: 0 },
+    { k: 'contrast', label: 'Contrast', min: 10, max: 90, v: 25 },
+    { k: 'gamma', label: 'Gamma', min: 40, max: 250, v: 100 },
+    { k: 'blackPt', label: 'Black point', min: 0, max: 128, v: 0 },
+    { k: 'whitePt', label: 'White point', min: 128, max: 255, v: 255 },
+    { k: 'invert', label: 'Invert', type: 'check', v: false },
+  ],
+  sculpt: [
+    { k: 'lightAngle', label: 'Light angle', min: 0, max: 360, v: 315 },
+    { k: 'relief', label: 'Relief', min: 0, max: 100, v: 55 },
+    { k: 'edgeThresh', label: 'Edge threshold', min: 1, max: 12, v: 4 },
+  ],
+  color: [
+    { k: 'colMode', label: 'Mode', type: 'select', options: { original: 'Original', phosphor: 'Phosphor', duotone: 'Duotone', heatmap: 'Heatmap', ink: 'Ink on paper' }, v: 'original' },
+    { k: 'hue', label: 'Phosphor hue', min: 0, max: 360, v: 120 },
+    { k: 'sat', label: 'Saturation', min: 0, max: 200, v: 100 },
+    { k: 'temp', label: 'Temperature', min: -100, max: 100, v: 0 },
+    { k: 'shadowCol', label: 'Duotone dark', type: 'color', v: '#0a1030' },
+    { k: 'highCol', label: 'Duotone light', type: 'color', v: '#ffd166' },
+    { k: 'bgCol', label: 'Background', type: 'color', v: '#050507' },
+  ],
+  motion: [
+    { k: 'trail', label: 'Trail / smear', min: 0, max: 92, v: 0 },
+    { k: 'smooth', label: 'Temporal blend', min: 0, max: 90, v: 0 },
+    { k: 'glitch', label: 'Glitch', min: 0, max: 100, v: 0 },
+  ],
+  atmo: [
+    { k: 'grain', label: 'Grain', min: 0, max: 100, v: 0 },
+    { k: 'scan', label: 'Scanlines', min: 0, max: 100, v: 0 },
+    { k: 'vignette', label: 'Vignette', min: 0, max: 100, v: 0 },
+    { k: 'bloom', label: 'Bloom', min: 0, max: 20, v: 0 },
+  ],
+};
+function applyDefs() { for (const g in DEFS) for (const d of DEFS[g]) P[d.k] = d.v; }
+applyDefs();
+const RAMP_SETS = DEFS.engine.find(d => d.k === 'ramp').options;
+// ---------- UI build ----------
+function buildGroup(groupId, defs) {
+  const host = document.getElementById(groupId);
+  for (const d of defs) {
+    const row = document.createElement('div'); row.className = 'row';
+    const lab = document.createElement('label'); lab.textContent = d.label; row.appendChild(lab);
+    if (d.type === 'check') {
+      const el = document.createElement('input'); el.type = 'checkbox'; el.checked = d.v;
+      el.addEventListener('change', () => P[d.k] = el.checked); row.appendChild(el);
+    } else if (d.type === 'select') {
+      const el = document.createElement('select');
+      for (const name in d.options) { const o = document.createElement('option'); o.value = name; o.textContent = name; el.appendChild(o); }
+      el.value = d.v;
+      el.addEventListener('change', () => P[d.k] = el.value); row.appendChild(el);
+    } else if (d.type === 'color') {
+      const el = document.createElement('input'); el.type = 'color'; el.value = d.v;
+      el.addEventListener('input', () => P[d.k] = el.value); row.appendChild(el);
+    } else if (d.type === 'text') {
+      const el = document.createElement('input'); el.type = 'text'; el.placeholder = d.placeholder || '';
+      el.addEventListener('input', () => P[d.k] = el.value); row.appendChild(el);
+    } else {
+      const el = document.createElement('input'); el.type = 'range'; el.min = d.min; el.max = d.max; el.value = d.v;
+      const val = document.createElement('span'); val.className = 'val'; val.textContent = d.v;
+      el.addEventListener('input', () => { P[d.k] = +el.value; val.textContent = el.value; });
+      row.appendChild(el); row.appendChild(val);
+    }
+    host.appendChild(row);
+  }
+}
+for (const g of ['engine','grid','image','sculpt','color','motion','atmo']) buildGroup('c-' + g, DEFS[g]);
+function refreshUI() {
+  for (const g in DEFS) {
+    const host = document.getElementById('c-' + g);
+    DEFS[g].forEach((d, i) => {
+      const row = host.children[i]; if (!row) return;
+      const el = row.querySelector('input,select'); if (!el) return;
+      if (el.type === 'checkbox') el.checked = !!P[d.k];
+      else if (el.tagName === 'SELECT') el.value = P[d.k];
+      else el.value = P[d.k];
+      const s = row.querySelector('.val'); if (s && el.type === 'range') s.textContent = P[d.k];
+    });
+  }
+}
+function applyPreset(name) { const pr = PRESETS[name]; if (!pr) return; Object.assign(P, pr); refreshUI(); }
+const presetHost = document.getElementById('presets');
+for (const name in PRESETS) {
+  const b = document.createElement('button'); b.textContent = name;
+  b.addEventListener('click', () => applyPreset(name));
+  presetHost.appendChild(b);
+}
+document.getElementById('btn-random').addEventListener('click', () => {
+  for (const g in DEFS) for (const d of DEFS[g]) {
+    if (d.type === 'range') P[d.k] = Math.round(d.min + Math.random() * (d.max - d.min));
+    else if (d.k === 'ramp') P[d.k] = Object.keys(RAMP_SETS)[Math.floor(Math.random() * (Object.keys(RAMP_SETS).length - 1))];
+    else if (d.k === 'engine') P[d.k] = Object.keys(d.options)[Math.floor(Math.random() * Object.keys(d.options).length)];
+    else if (d.k === 'colMode') P[d.k] = ['original','phosphor','duotone','heatmap','ink'][Math.floor(Math.random()*5)];
+    else if (d.type === 'color') P[d.k] = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+    else if (d.type === 'check') P[d.k] = Math.random() < 0.2;
+  }
+  refreshUI();
+});
+// ---------- export / import ----------
+document.getElementById('btn-share').addEventListener('click', () => {
+  location.hash = encodeURIComponent(JSON.stringify(P));
+  navigator.clipboard && navigator.clipboard.writeText(location.href).catch(()=>{});
+});
+document.getElementById('btn-export').addEventListener('click', async () => {
+  // EXPORT = this very file, your settings baked in as the boot state, panel removed.
+  const src = await (await fetch(location.href)).text();
+  const inject = '<script>window.CHIARO_EXPORT=' + JSON.stringify(P).replace(/</g, '\\u003c') + '<\/script>' +
+    '<style>#panel{display:none!important}#stage{inset:0!important}</style>';
+  const out = src.replace('</head>', inject + '\n</head>');
+  const blob = new Blob([out], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'chiaroscuro-renderer-' + Date.now() + '.html';
+  a.click(); URL.revokeObjectURL(a.href);
+});
+document.getElementById('btn-save').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(P, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'chiaroscuro-settings.json'; a.click(); URL.revokeObjectURL(a.href);
+});
+document.getElementById('btn-load').addEventListener('click', () => document.getElementById('loadjson').click());
+document.getElementById('loadjson').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try { Object.assign(P, JSON.parse(await f.text())); refreshUI(); } catch (err) { alert('bad settings file'); }
+});
+document.getElementById('btn-fs').addEventListener('click', () => {
+  const el = document.documentElement;
+  if (document.fullscreenElement) document.exitFullscreen();
+  else el.requestFullscreen && el.requestFullscreen();
+});
+document.getElementById('btn-term').addEventListener('click', () => {
+  // TERMINAL APP: a standalone Python renderer (OpenCV) with your settings baked in.
+  const sub = {};
+  for (const k of ['engine','ramp','rampCustom','density','brightness','contrast','gamma','blackPt','whitePt','invert','posterize','toneAmt','edgeAmt','edgeGain','edgeStyle','edgeThresh','colMode','hue','sat','temp','shadowCol','highCol','mirror']) sub[k] = P[k];
+  if (sub.engine !== 'glyph' && sub.engine !== 'pixel') sub.engine = sub.engine === 'halftone' ? 'glyph' : 'pixel';
+  const py = buildTermApp(sub);
+  const blob = new Blob([py], { type: 'text/x-python' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'chiaroscuro-terminal.py';
+  a.click(); URL.revokeObjectURL(a.href);
+});
+function buildTermApp(S) {
+  return "#!/usr/bin/env python3\n" +
+"# chiaroscuro terminal renderer — exported from the Studio\n" +
+"# deps:  pip install opencv-python      run:  python chiaroscuro-terminal.py      quit: Ctrl-C\n" +
+"# Your look, in a real terminal: truecolor ANSI, half-blocks, edge glyphs.\n" +
+"import sys, math, cv2, numpy as np\n" +
+"\nP = " + JSON.stringify(S, null, 1) + "\n" +
+"\nESC = chr(27)\n" +
+"def fg(r,g,b): return ESC + '[38;2;' + str(int(r)) + ';' + str(int(g)) + ';' + str(int(b)) + 'm'\n" +
+"RESET = ESC + '[0m'\n" +
+"RAMPS = {\n" +
+" 'classic': ' .:-=+*#%@@',\n" +
+" 'fine': " + JSON.stringify(" .'`^\",:;Il!i><~+_-?][}{1)(|\\\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$") + ",\n" +
+" 'blocks': ' ░▒▓█', 'minimal': ' .:*#', 'stars': '·∴∗✦✱✳❋█',\n" +
+" 'runes': '·ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃ█', 'binary': ' 01', 'code': ' {}[]()<>/\\\\|=+*', 'waves': '·≈≋▒▓█'}\n" +
+"RAMP = P.get('rampCustom') or RAMPS.get(P['ramp'], RAMPS['classic'])\n" +
+"DIRS = ('─','╱','│','╲')\n" +
+"def hsl(h, l):\n" +
+"    h = (h % 360) / 360.0\n" +
+"    import colorsys\n" +
+"    r, g, b = colorsys.hls_to_rgb(h, max(0.0, min(1.0, l)), 0.85)\n" +
+"    return (r*255, g*255, b*255)\n" +
+"def hex2rgb(hx):\n" +
+"    hx = hx.lstrip('#')\n" +
+"    return tuple(int(hx[i:i+2], 16) for i in (0, 2, 4))\n" +
+"def paint(rgb, L):\n" +
+"    r, g, b = rgb\n" +
+"    gray = 0.299*r + 0.587*g + 0.114*b\n" +
+"    s = P.get('sat', 100)/100.0\n" +
+"    r, g, b = gray+(r-gray)*s, gray+(g-gray)*s, gray+(b-gray)*s\n" +
+"    t = P.get('temp', 0) * 0.35\n" +
+"    r, b = min(255, r+t), max(0, b-t)\n" +
+"    m = P['colMode']\n" +
+"    if m == 'phosphor': return hsl(P.get('hue', 120), 0.04 + L*0.85)\n" +
+"    if m == 'duotone':\n" +
+"        a, c = hex2rgb(P.get('shadowCol', '#0a1030')), hex2rgb(P.get('highCol', '#ffd166'))\n" +
+"        return tuple(a[i] + (c[i]-a[i])*max(0.0, min(1.0, L/255.0)) for i in range(3))\n" +
+"    if m == 'heatmap': return hsl((300 - L/255.0*300) % 360, 0.2 + L*0.25)\n" +
+"    if m == 'ink':\n" +
+"        v = 255 - L\n" +
+"        return (v, v, v)\n" +
+"    return (r, g, b)\n" +
+"def main():\n" +
+"    cap = cv2.VideoCapture(0)\n" +
+"    if not cap.isOpened():\n" +
+"        print('no camera found'); return\n" +
+"    sys.stdout.write(ESC + '[?25l' + ESC + '[2J')\n" +
+"    ok, frame = cap.read()\n" +
+"    fh, fw = frame.shape[:2]\n" +
+"    cols = P['density']\n" +
+"    rows = max(2, int(cols * fh / fw * 0.5))\n" +
+"    try:\n" +
+"        while True:\n" +
+"            ok, frame = cap.read()\n" +
+"            if not ok: break\n" +
+"            if P.get('mirror', True): frame = cv2.flip(frame, 1)\n" +
+"            small = cv2.resize(frame, (cols, rows))\n" +
+"            lum = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY).astype(np.float32)\n" +
+"            con = P['contrast']/25.0\n" +
+"            lum = np.clip((lum - 128.0) * con + 128.0 + P['brightness']*2.2, 0, 255)\n" +
+"            lum = 255.0 * np.power(np.clip(lum/255.0, 0, 1), P['gamma']/100.0)\n" +
+"            lum = np.clip((lum - P['blackPt']) / max(1, P['whitePt'] - P['blackPt']) * 255.0, 0, 255)\n" +
+"            if P.get('invert'): lum = 255.0 - lum\n" +
+"            if P.get('posterize', 0) > 1:\n" +
+"                lv = P['posterize'] - 1\n" +
+"                lum = np.round(lum/255.0*lv)/lv*255.0\n" +
+"            gx = cv2.Sobel(lum, cv2.CV_32F, 1, 0, ksize=3)\n" +
+"            gy = cv2.Sobel(lum, cv2.CV_32F, 0, 1, ksize=3)\n" +
+"            mag = np.sqrt(gx*gx + gy*gy) / 1020.0\n" +
+"            lines = []\n" +
+"            if P['engine'] == 'pixel':\n" +
+"                small2 = cv2.resize(frame, (cols, rows*2))\n" +
+"                for y in range(rows):\n" +
+"                    row = ''\n" +
+"                    for x in range(cols):\n" +
+"                        pt = small2[y*2, x][::-1]; pb = small2[y*2+1, x][::-1]\n" +
+"                        Lt = float(lum[y, x]); Lb = float(lum[min(rows-1, y+1), x])\n" +
+"                        ct, cb2 = paint(pt, Lt), paint(pb, Lb)\n" +
+"                        row += fg(*cb2) + ESC + '[48;2;' + str(int(ct[0])) + ';' + str(int(ct[1])) + ';' + str(int(ct[2])) + 'm' + '▀'\n" +
+"                    lines.append(row + RESET)\n" +
+"            else:\n" +
+"                rl = len(RAMP)\n" +
+"                tm, em = P.get('toneAmt', 100)/100.0, P.get('edgeAmt', 0)/100.0\n" +
+"                thr = P.get('edgeThresh', 4)/100.0\n" +
+"                for y in range(rows):\n" +
+"                    row = ''\n" +
+"                    for x in range(cols):\n" +
+"                        L = float(lum[y, x])\n" +
+"                        rgb = small[y, x][::-1]\n" +
+"                        m2 = float(mag[y, x])\n" +
+"                        ch = None\n" +
+"                        if em > 0 and m2 > thr:\n" +
+"                            ang = math.degrees(math.atan2(float(gy[y, x]), float(gx[y, x]))) % 180\n" +
+"                            fam = 0\n" +
+"                            if 22.5 <= ang < 67.5: fam = 1\n" +
+"                            elif 67.5 <= ang < 112.5: fam = 2\n" +
+"                            elif 112.5 <= ang < 157.5: fam = 3\n" +
+"                            ch = DIRS[fam]\n" +
+"                        if ch is None and tm > 0.05:\n" +
+"                            ch = RAMP[min(rl-1, int((1.0 - L/255.0) * rl))]\n" +
+"                            if ch == ' ': ch = None\n" +
+"                        if ch is None:\n" +
+"                            row += ' '\n" +
+"                        else:\n" +
+"                            cr, cg, cb3 = paint(rgb, L)\n" +
+"                            row += fg(cr, cg, cb3) + ch\n" +
+"                    lines.append(row + RESET)\n" +
+"            sys.stdout.write(ESC + '[H' + chr(10).join(lines))\n" +
+"            sys.stdout.flush()\n" +
+"    except KeyboardInterrupt:\n" +
+"        pass\n" +
+"    finally:\n" +
+"        cap.release()\n" +
+"        sys.stdout.write(RESET + ESC + '[?25h' + chr(10))\n" +
+"if __name__ == '__main__':\n" +
+"    main()\n";
+}
+// boot: exported defaults > hash > ?preset=
+try { if (window.CHIARO_EXPORT) Object.assign(P, window.CHIARO_EXPORT); } catch (e) {}
+try { const h = location.hash.slice(1); if (h) Object.assign(P, JSON.parse(decodeURIComponent(h))); } catch (e) {}
+{ const pn = new URLSearchParams(location.search).get('preset'); if (pn && PRESETS[pn]) Object.assign(P, PRESETS[pn]); }
+refreshUI();
+document.querySelectorAll('.gtitle').forEach(t => t.addEventListener('click', () => {
+  const kids = [...t.parentElement.children].filter(c => c !== t);
+  const hidden = kids[0] && kids[0].style.display === 'none';
+  kids.forEach(c => c.style.display = hidden ? '' : 'none');
+}));
+
+// ---------- camera / mock ----------
+async function initCamera() {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }, audio: false });
+    video.srcObject = s; video.autoplay = true; video.playsInline = true;
+    video.addEventListener('playing', () => requestAnimationFrame(loop));
+  } catch (e) { console.error(e); alert('Webcam permission needed.'); }
+}
+
+// ---------- color helpers ----------
+function hsl2rgb(h, s, l) {
+  s /= 100; l /= 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) [r,g,b] = [c,x,0]; else if (h < 120) [r,g,b] = [x,c,0]; else if (h < 180) [r,g,b] = [0,c,x];
+  else if (h < 240) [r,g,b] = [0,x,c]; else if (h < 300) [r,g,b] = [x,0,c]; else [r,g,b] = [c,0,x];
+  return [(r+m)*255, (g+m)*255, (b+m)*255];
+}
+function hexRgb(hx) { const n = parseInt(hx.slice(1), 16); return [(n>>16)&255, (n>>8)&255, n&255]; }
+function cellColor(r, g, b, L) {
+  const sat = P.sat / 100, gray = 0.299*r + 0.587*g + 0.114*b;
+  r = gray + (r-gray)*sat; g = gray + (g-gray)*sat; b = gray + (b-gray)*sat;
+  if (P.temp) { const t = P.temp * 0.35; r = Math.min(255, r + t); b = Math.max(0, b - t); }
+  switch (P.colMode) {
+    case 'phosphor': return hsl2rgb(P.hue, Math.min(100, sat*80), Math.min(92, L*0.85 + 4));
+    case 'duotone': {
+      const a = hexRgb(P.shadowCol), c = hexRgb(P.highCol), t = Math.max(0, Math.min(1, L/255));
+      return [a[0]+(c[0]-a[0])*t, a[1]+(c[1]-a[1])*t, a[2]+(c[2]-a[2])*t];
+    }
+    case 'heatmap': return hsl2rgb((300 - L/255*300 + 360) % 360, 85, Math.min(70, 20 + L*0.22));
+    case 'ink': { const v = 255 - L; return [v, v, v]; }
+    default: return [r, g, b];
+  }
+}
+function activeRamp() {
+  if (P.ramp === 'custom' && P.rampCustom) return P.rampCustom;
+  return RAMP_SETS[P.ramp] || RAMP_SETS.classic;
+}
+// shape-match: glyph signatures at 4x6, cached per ramp
+const matchCache = { key: '', sigs: [] };
+function glyphSigs(ramp) {
+  const key = P.font + '|' + ramp;
+  if (matchCache.key === key) return matchCache.sigs;
+  const cw = 4, chh = 6, fs = 14;
+  const oc = document.createElement('canvas'); oc.width = cw; oc.height = chh;
+  const o = oc.getContext('2d', { willReadFrequently: true });
+  const sigs = [];
+  for (const gch of ramp) {
+    o.clearRect(0, 0, cw, chh);
+    o.fillStyle = '#fff';
+    o.font = fs + 'px ' + FONT_MAP[P.font];
+    o.textBaseline = 'top';
+    o.fillText(gch, -1, -2);
+    const d = o.getImageData(0, 0, cw, chh).data;
+    const bits = [];
+    for (let i = 3; i < d.length; i += 4) bits.push(d[i] > 100 ? 1 : 0);
+    sigs.push({ ch: gch, bits });
+  }
+  matchCache.key = key; matchCache.sigs = sigs;
+  return sigs;
+}
+
+// ---------- main loop ----------
+let prevLum = null, last = 0;
+const noise = document.createElement('canvas'); noise.width = noise.height = 256;
+{ const nc = noise.getContext('2d'); const id = nc.createImageData(256,256);
+  for (let i = 0; i < id.data.length; i += 4) { const v = Math.random()*255; id.data[i]=id.data[i+1]=id.data[i+2]=v; id.data[i+3]=255; }
+  nc.putImageData(id, 0, 0); }
+
+function loop(ts) {
+  requestAnimationFrame(loop);
+  if (P.fps < 60 && ts - last < 1000 / P.fps) return;
+  last = ts;
+  if (video.paused || video.ended || !video.videoWidth) return;
+
+  const cols = P.density | 0;
+  const aspect = video.videoWidth / video.videoHeight;
+  const rows = Math.max(2, Math.floor(cols / aspect));
+
+  // source luminance field (with zoom/kaleido handled at sampling)
+  buf.width = cols; buf.height = rows;
+  if (P.mirror) { bctx.translate(cols, 0); bctx.scale(-1, 1); }
+  const zw = cols * 100 / P.zoom, zh = rows * 100 / P.zoom;
+  bctx.drawImage(video, (cols - zw)/2, (rows - zh)/2, zw, zh);
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  const px = bctx.getImageData(0, 0, cols, rows).data;
+
+  const n = cols * rows;
+  let lum = new Float32Array(n);
+  const con = P.contrast / 25, bri = P.brightness * 2.2, gam = P.gamma / 100;
+  const kale = P.kaleido | 0;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      let sx = x, sy = y;
+      if (kale >= 2 && sx >= cols/2) sx = cols - 1 - sx;
+      if (kale >= 4 && sy >= rows/2) sy = rows - 1 - sy;
+      const i = y * cols + x, s = (sy|0) * cols + (sx|0), p = s * 4;
+      let L = (0.299*px[p] + 0.587*px[p+1] + 0.114*px[p+2]) / 255;
+      L = Math.max(0, Math.min(1, (L - 0.5) * con + 0.5 + bri/2550));
+      L = Math.pow(Math.max(0, Math.min(1, L)), gam);
+      L = Math.max(0, Math.min(1, (L*255 - P.blackPt) / Math.max(1, P.whitePt - P.blackPt)));
+      if (P.invert) L = 1 - L;
+      if (P.posterize > 1) L = Math.round(L * (P.posterize-1)) / (P.posterize-1);
+      lum[i] = L * 255;
+    }
+  }
+  if (P.smooth > 0 && prevLum && prevLum.length === n) {
+    const k = P.smooth / 100;
+    for (let i = 0; i < n; i++) lum[i] = lum[i]*(1-k) + prevLum[i]*k;
+  }
+  prevLum = lum.slice();
+  if (P.dither > 0) {
+    const bayer = [0,2,3,1], amt = P.dither * 0.9;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++)
+      lum[y*cols+x] += (bayer[(y&1)*2+(x&1)]/4 - 0.5) * amt;
+  }
+
+  const fh = Math.max(7, Math.floor(window.innerHeight / rows));
+  const fw = Math.max(4, fh * P.cellAspect / 100);
+  cv.width = cols * fw; cv.height = rows * fh;
+  ctx.font = (fh * 0.98 * P.glyphSize/100).toFixed(1) + 'px ' + FONT_MAP[P.font];
+  ctx.textBaseline = 'top';
+
+  // background with trail persistence
+  const ink = P.colMode === 'ink';
+  const bgc = ink ? '#f2efe6' : P.bgCol;
+  ctx.globalAlpha = P.trail > 0 ? Math.max(0.08, 1 - P.trail/100) : 1;
+  ctx.fillStyle = bgc; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.globalAlpha = 1;
+
+  const ramp = activeRamp(), rl = ramp.length;
+  const lx = Math.cos(P.lightAngle*Math.PI/180), ly = Math.sin(P.lightAngle*Math.PI/180);
+  const relief = P.relief/100, edgeMix = P.edgeAmt/100, toneMix = P.toneAmt/100, brMix = P.brailleAmt/100;
+  const DIRS = [['·','─','━','═','█'], ['·','╱','╱','▚','▓'], ['·','│','┃','║','█'], ['·','╲','╲','▞','▓']];
+  const BMAP = [0x01,0x08,0x02,0x10,0x04,0x20,0x40,0x80];
+  const BX = [0,0,0,0,1,1,1,1], BY = [0,1,2,3,0,1,2,3];
+  const jit = P.jitter / 3;
+  const eng = P.engine;
+
+  function emit(x, y, ch, r, g, b, L) {
+    if (!ch) return;
+    let [cr, cg, cb] = cellColor(r, g, b, L);
+    if (P.bloom > 0 && L > 200) { ctx.shadowColor = `rgba(${cr|0},${cg|0},${cb|0},0.9)`; ctx.shadowBlur = P.bloom; } else ctx.shadowBlur = 0;
+    ctx.fillStyle = `rgb(${Math.max(0,Math.min(255,cr))|0},${Math.max(0,Math.min(255,cg))|0},${Math.max(0,Math.min(255,cb))|0})`;
+    const jx = jit ? (Math.random()-0.5)*jit : 0, jy = jit ? (Math.random()-0.5)*jit : 0;
+    ctx.fillText(ch, x*fw + jx, y*fh + jy);
+  }
+
+  if (eng === 'pixel') {
+    // half-block photographic: 2 sub-rows per cell, ▀ with fg=top, bg=bottom
+    bufHi.width = cols; bufHi.height = rows*2;
+    bctxHi.drawImage(video, 0, 0, cols, rows*2);
+    const hp = bctxHi.getImageData(0, 0, cols, rows*2).data;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const pT = ((y*2)*cols + x)*4, pB = ((y*2+1)*cols + x)*4;
+      const LT = (0.299*hp[pT]+0.587*hp[pT+1]+0.114*hp[pT+2]);
+      const LB = (0.299*hp[pB]+0.587*hp[pB+1]+0.114*hp[pB+2]);
+      const [tr,tg,tb] = cellColor(hp[pT], hp[pT+1], hp[pT+2], LT);
+      const [br,bg2,bb] = cellColor(hp[pB], hp[pB+1], hp[pB+2], LB);
+      ctx.fillStyle = `rgb(${br|0},${bg2|0},${bb|0})`;
+      ctx.fillRect(x*fw, y*fh, fw, fh);
+      ctx.fillStyle = `rgb(${tr|0},${tg|0},${tb|0})`;
+      ctx.fillRect(x*fw, y*fh, fw, fh/2);
+    }
+  } else if (eng === 'braille') {
+    // pure dot image: 2x4 subpixels per cell, full-res buffer
+    bufHi.width = cols*2; bufHi.height = rows*4;
+    bctxHi.drawImage(video, 0, 0, cols*2, rows*4);
+    const bp = bctxHi.getImageData(0, 0, cols*2, rows*4).data;
+    const gain = P.dotGain/100;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      let dots = 0, sr = 0, sg = 0, sb = 0;
+      for (let d = 0; d < 8; d++) {
+        const sxp = Math.min(cols*2-1, x*2 + BX[d]), syp = Math.min(rows*4-1, y*4 + BY[d]);
+        const p = (syp*(cols*2) + sxp)*4;
+        const v = 0.299*bp[p]+0.587*bp[p+1]+0.114*bp[p+2];
+        if (v > 255*(1-gain) || (v > 128 && Math.random() < gain)) dots |= BMAP[d];
+        sr += bp[p]; sg += bp[p+1]; sb += bp[p+2];
+      }
+      if (dots) emit(x, y, String.fromCharCode(0x2800+dots), sr/8, sg/8, sb/8, (sr+sg+sb)/24);
+    }
+  } else if (eng === 'halftone') {
+    const gain = P.dotGain/100;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const i = y*cols+x, p = i*4, L = lum[i];
+      const rad = (L/255) * Math.min(fw, fh) * 0.62 * gain;
+      if (rad < 0.4) continue;
+      let [cr,cg,cb] = cellColor(px[p], px[p+1], px[p+2], L);
+      ctx.fillStyle = `rgb(${cr|0},${cg|0},${cb|0})`;
+      ctx.beginPath();
+      ctx.arc(x*fw + fw/2, y*fh + fh/2, rad, 0, Math.PI*2);
+      ctx.fill();
+    }
+  } else if (eng === 'match') {
+    const sigs = glyphSigs(ramp);
+    const cw = 4, chh = 6;
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+      const i = y*cols+x, p = i*4, L = lum[i];
+      const mean = L;
+      let best = 0, bestD = 1e9;
+      for (let s = 0; s < sigs.length; s++) {
+        let d = 0;
+        const bits = sigs[s].bits;
+        for (let by2 = 0; by2 < chh; by2++) for (let bx = 0; bx < cw; bx++) {
+          const sxp = Math.min(cols-1, x + (bx*2/(cw-1)|0));
+          const syp = Math.min(rows-1, y + (by2/(chh-1)|0));
+          const v = lum[syp*cols+sxp] > mean ? 1 : 0;
+          if (v !== bits[by2*cw+bx]) d++;
+        }
+        if (d < bestD) { bestD = d; best = s; }
+      }
+      emit(x, y, sigs[best].ch, px[p], px[p+1], px[p+2], L);
+    }
+  } else {
+    // GLYPH engine — bivariate tone/edge/braille (v2 core)
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const i = y*cols+x, p = i*4;
+        const xm = x>0?x-1:x, xp = x<cols-1?x+1:x, ym = y>0?y-1:y, yp = y<rows-1?y+1:y;
+        const L = lum[i];
+        const g00=lum[ym*cols+xm], g01=lum[ym*cols+x], g02=lum[ym*cols+xp];
+        const g10=lum[y*cols+xm], g12=lum[y*cols+xp];
+        const g20=lum[yp*cols+xm], g21=lum[yp*cols+x], g22=lum[yp*cols+xp];
+        let gxv, gyv;
+        if (P.edgeStyle === 'emboss') { gxv = g22-g00; gyv = g20-g02; }
+        else if (P.edgeStyle === 'laplace') { gxv = g01+g10+g12+g21-4*L; gyv = 0; }
+        else { gxv = (g02+2*g12+g22)-(g00+2*g10+g20); gyv = (g20+2*g21+g22)-(g00+2*g01+g02); }
+        const mag = Math.sqrt(gxv*gxv+gyv*gyv)/1020;
+        const mean = (g00+g01+g02+g10+g12+g20+g21+g22)/8;
+        const varr = ((g00-mean)**2+(g01-mean)**2+(g02-mean)**2+(g10-mean)**2+(g12-mean)**2+(g20-mean)**2+(g21-mean)**2+(g22-mean)**2)/8/4000;
+        let ch = null, cr = px[p], cg = px[p+1], cb = px[p+2];
+        if (edgeMix > 0 && mag > P.edgeThresh/100) {
+          const ang = (Math.atan2(gyv, gxv)*180/Math.PI + 360) % 180;
+          let fam = DIRS[0];
+          if (ang >= 22.5 && ang < 67.5) fam = DIRS[1];
+          else if (ang >= 67.5 && ang < 112.5) fam = DIRS[2];
+          else if (ang >= 112.5 && ang < 157.5) fam = DIRS[3];
+          ch = fam[Math.min(4, Math.floor(mag*9*(P.edgeGain/8)*(0.5+relief)))];
+          const lit = (gxv*lx + gyv*ly)/(mag*1020+1);
+          const boost = relief*lit*90;
+          if (P.edgeColor === 'white') { cr = cg = cb = 255; }
+          else if (P.edgeColor === 'black') { cr = cg = cb = 0; }
+          else { cr += boost; cg += boost; cb += boost; }
+        } else if (brMix > 0.08 && varr > (1-brMix)*0.4 && mag < 0.12) {
+          let dots = 0;
+          for (let d = 0; d < 8; d++) {
+            const v = lum[Math.min(rows-1, ym+BY[d]*Math.max(1,yp-ym)/3|0)*cols + Math.min(cols-1, x+BX[d])];
+            if (v > mean + (0.5-brMix)*40) dots |= BMAP[d];
+          }
+          ch = dots ? String.fromCharCode(0x2800+dots) : null;
+        }
+        if (!ch && toneMix > 0.05) {
+          const t = Math.max(0, Math.min(0.999, L/255));
+          ch = ramp[Math.floor((1-t)*(rl-1))];
+          if (ch === ' ') ch = null;
+        }
+        emit(x, y, ch, cr, cg, cb, L);
+      }
+    }
+  }
+  ctx.shadowBlur = 0;
+
+  // glitch: displaced strips
+  if (P.glitch > 0 && Math.random() < P.glitch/60) {
+    const strips = 1 + (Math.random()*4|0);
+    for (let s = 0; s < strips; s++) {
+      const gy = Math.random()*cv.height|0, gh = 4 + Math.random()*18, dx = (Math.random()-0.5)*cv.width*0.1*P.glitch/50;
+      ctx.drawImage(cv, 0, gy, cv.width, gh, dx, gy, cv.width, gh);
+    }
+  }
+  if (P.scan > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,' + (P.scan/140) + ')';
+    for (let sy = 0; sy < cv.height; sy += 3) ctx.fillRect(0, sy, cv.width, 1);
+  }
+  if (P.grain > 0) {
+    ctx.globalAlpha = P.grain/500;
+    for (let gy2 = 0; gy2 < cv.height; gy2 += 256) for (let gx2 = 0; gx2 < cv.width; gx2 += 256)
+      ctx.drawImage(noise, gx2 + (Math.random()*8|0), gy2 + (Math.random()*8|0));
+    ctx.globalAlpha = 1;
+  }
+  if (P.vignette > 0) {
+    const vg = ctx.createRadialGradient(cv.width/2, cv.height/2, cv.height*0.35, cv.width/2, cv.height/2, cv.height*0.85);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, `rgba(0,0,0,${P.vignette/110})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, cv.width, cv.height);
+  }
+}
+
+if (MOCK) {
+  const m = document.createElement('canvas'); m.width = 640; m.height = 480;
+  const mc = m.getContext('2d'); let t = 0;
+  // wrap the video: simplest mock = override video element behavior via proxy object
+  const mockVideo = new Proxy(m, {
+    get(tg, k) {
+      if (k === 'videoWidth') return 640; if (k === 'videoHeight') return 480;
+      if (k === 'paused' || k === 'ended') return false;
+      return tg[k];
+    }
+  });
+  // loop reads `video` directly — swap it
+  Object.defineProperty(window, '__mockCanvas', { value: m });
+  (function dm() {
+    const w = m.width, h = m.height;
+    mc.fillStyle = '#141414'; mc.fillRect(0, 0, w, h);
+    const lxp = w/2 + Math.cos(t/40)*w/3, lyp = h/2 + Math.sin(t/40)*h/3;
+    const rg = mc.createRadialGradient(lxp, lyp, 10, lxp, lyp, h*0.85);
+    rg.addColorStop(0, '#f5eede'); rg.addColorStop(1, '#0a0a0a');
+    mc.fillStyle = rg; mc.fillRect(0, 0, w, h);
+    const bx = w/2 + Math.sin(t/25)*w/5, by = h/2 + Math.cos(t/17)*h/6;
+    const sg = mc.createRadialGradient(bx-30, by-30, 5, bx, by, 90);
+    sg.addColorStop(0, '#fff'); sg.addColorStop(0.6, '#9a7a55'); sg.addColorStop(1, '#101010');
+    mc.fillStyle = sg; mc.beginPath(); mc.arc(bx, by, 90, 0, Math.PI*2); mc.fill();
+    mc.save(); mc.translate(w/2, h/2); mc.rotate(t/90);
+    mc.fillStyle = '#e8e8e8'; mc.fillRect(-230, -14, 460, 28);
+    mc.rotate(Math.PI/4); mc.fillStyle = '#989898'; mc.fillRect(-270, -10, 540, 20);
+    mc.restore();
+    for (let cy = 0; cy < 8; cy++) for (let cx = 0; cx < 8; cx++)
+      if ((cx + cy + (t>>3)) % 2) { mc.fillStyle = '#d8d8d8'; mc.fillRect(470+cx*16, 300+cy*16, 16, 16); }
+    t++;
+    requestAnimationFrame(dm);
+  })();
+  // rebind: replace loop's video reference via closure trick — easiest is reassignment
+  window.VIDEOSRC = m;
+} else {
+  initCamera();
+}
+</script>
+<script>
+// rebind loop's video source for mock mode (loop closes over `video`; patch by
+// making mock frames draw into the video slot via a shim)
+if (MOCK) {
+  // swap: loop() checks video.paused/ended/videoWidth — give the real video element
+  // a mock feed by piping the mock canvas through captureStream
+  const stream = window.__mockCanvas.captureStream(30);
+  video.srcObject = stream; video.autoplay = true; video.playsInline = true;
+  video.play().then(() => requestAnimationFrame(loop)).catch(() => requestAnimationFrame(loop));
+}
+</script>
+</body>
+</html>

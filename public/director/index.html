@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ASCII MIRROR — THE DIRECTOR</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+#stage { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+canvas { max-width: 100%; max-height: 100%; }
+#now {
+  position: absolute; bottom: 18px; left: 0; right: 0; text-align: center;
+  font-size: 12px; letter-spacing: 4px; color: #8888a0; text-transform: uppercase;
+  opacity: 0; transition: opacity 1.6s; pointer-events: none; z-index: 5;
+  text-shadow: 0 0 12px rgba(0,0,0,0.9);
+}
+#tap { position: absolute; top: 16px; right: 20px; font-size: 10px; letter-spacing: 2px; color: #3d3d50; z-index: 5; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<div id="now"></div>
+<div id="tap">TAP = NEXT SCENE</div>
+<script>
+"use strict";
+// ============ ASCII MIRROR — THE DIRECTOR ============
+// No knobs. An aesthetic engine reads the scene (motion energy,
+// light level, edge density) and continuously composes + morphs
+// its own look: ramp, palette, relief lighting, atmosphere.
+// Every scene gets a name. TAP/click to cut to the next scene.
+
+const MOCK = new URLSearchParams(location.search).has('mock');
+const video = document.createElement('video');
+const buf = document.createElement('canvas');
+const bctx = buf.getContext('2d', { willReadFrequently: true });
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const nowEl = document.getElementById('now');
+
+// ---------- aesthetic vocabulary ----------
+const RAMPS = [
+  { name: 'classic', s: " .:-=+*#%@@@" },
+  { name: 'fine', s: " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$" },
+  { name: 'blocks', s: " ░▒▓█" },
+  { name: 'stars', s: "·∴∗✦✱✳❋█" },
+  { name: 'runes', s: "·ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃ█" },
+  { name: 'waves', s: "·≈≋▒▓█" },
+  { name: 'moons', s: "·☽☾●█" },
+  { name: 'crypt', s: " ⌁⌇⍾⍤⍨⍦█" },
+];
+const MOOD_NAMES = [
+  ['Midnight', 'Requiem', 'Silhouette', 'Eclipse', 'Undertow', 'Deep Current'],
+  ['Neon Rain', 'Circuit Bloom', 'Chrome Dusk', 'Static Halo', 'Vapor Signal'],
+  ['Paper Moon', 'Fresco', 'Etching', 'Letterpress', 'Copper Plate'],
+  ['Ember Field', 'Solar Wind', 'Kiln', 'Magma Hymn', 'Amber Vault'],
+  ['Frost Line', 'Glacier Turn', 'Porcelain', 'Bone China', 'Ghost Orchid'],
+];
+const ADJ = ['Slow', 'Soft', 'Restless', 'Bright', 'Hollow', 'Wide', 'Quiet', 'Feral', 'Lucid', 'Low'];
+
+// ---------- live parameter state (lerped) ----------
+const cur = {};   // current values
+const tgt = {};   // target values
+const KEYS = ['density','con','gamma','inv','toneW','edgeW','brailleW','edgeGain','relief','lightA',
+  'grain','scan','vig','bloom','dither',
+  'mode','hue1','hue2','sat','shadowR','shadowG','shadowB','highR','highG','highB','bgR','bgG','bgB','inkBg'];
+// mode is stepped (no lerp): 0 original, 1 phosphor, 2 duotone, 3 heatmap, 4 ink
+let sceneT0 = 0, sceneDur = 12000, sceneName = '';
+
+function rand(a, b) { return a + Math.random() * (b - a); }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function hsl2rgb(h, s, l) {
+  s /= 100; l /= 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) [r,g,b] = [c,x,0]; else if (h < 120) [r,g,b] = [x,c,0]; else if (h < 180) [r,g,b] = [0,c,x];
+  else if (h < 240) [r,g,b] = [0,x,c]; else if (h < 300) [r,g,b] = [x,0,c]; else [r,g,b] = [c,0,x];
+  return [(r+m)*255, (g+m)*255, (b+m)*255];
+}
+
+// scene recipes — families with their own biases
+const neonScene = (env) => {
+    const h1 = rand(0, 360), h2 = (h1 + rand(120, 240)) % 360;
+    return { ramp: pick(['blocks','fine','stars']), density: rand(90, 140), con: rand(1.8, 2.6), gamma: rand(0.7, 1),
+      toneW: rand(0.5, 0.9), edgeW: rand(0.4, 0.9), brailleW: rand(0.2, 0.5), edgeGain: rand(8, 14), relief: rand(0.4, 0.8),
+      lightA: rand(0, 360), grain: rand(15, 40), scan: rand(0, 40), vig: rand(40, 70), bloom: rand(8, 18), dither: 0,
+      mode: 2, sat: 100, shadow: hsl2rgb(h1, 85, 14), high: hsl2rgb(h2, 95, 66), bg: [3 + rand(0,6), 0, 8 + rand(0,8)] };
+};
+const phosphorScene = (env) => {
+    const h = pick([120, 36, 160, 300, 190]);
+    return { ramp: pick(['classic','fine']), density: rand(100, 150), con: rand(1.6, 2.6), gamma: rand(0.75, 1.05),
+      toneW: 1, edgeW: rand(0, 0.3), brailleW: rand(0, 0.3), edgeGain: 8, relief: rand(0, 0.3), lightA: 315,
+      grain: rand(15, 45), scan: rand(40, 80), vig: rand(40, 70), bloom: rand(4, 10), dither: rand(0, 40),
+      mode: 1, hue1: h, sat: rand(70, 120), bg: [0, 8 + rand(0,10), 0] };
+};
+const inkScene = (env) => {
+    return { ramp: pick(['fine','minimal','classic']), density: rand(100, 140), con: rand(1.5, 2.2), gamma: rand(0.95, 1.4),
+      toneW: 1, edgeW: rand(0.2, 0.5), brailleW: rand(0, 0.2), edgeGain: rand(8, 12), relief: rand(0.2, 0.5),
+      lightA: rand(0, 360), grain: rand(5, 20), scan: 0, vig: 0, bloom: 0, dither: rand(0, 25),
+      mode: 4, sat: 0, bg: [242, 239, 230] };
+};
+const reliefScene = (env) => {
+    return { ramp: pick(['fine','minimal']), density: rand(70, 110), con: rand(1.8, 2.6), gamma: rand(0.65, 0.9),
+      toneW: rand(0, 0.4), edgeW: 1, brailleW: 0, edgeGain: rand(11, 15), relief: rand(0.6, 0.95),
+      lightA: rand(0, 360), grain: rand(0, 12), scan: 0, vig: rand(20, 45), bloom: rand(0, 6), dither: 0,
+      mode: 1, hue1: rand(130, 200), sat: rand(40, 90), bg: [2, 4, 3] };
+};
+const brailleScene = (env) => {
+    return { ramp: pick(['blocks','waves']), density: rand(90, 120), con: rand(1.4, 2.2), gamma: rand(0.9, 1.2),
+      toneW: rand(0.6, 1), edgeW: rand(0.2, 0.6), brailleW: rand(0.5, 0.9), edgeGain: 8, relief: rand(0.2, 0.5),
+      lightA: rand(0, 360), grain: rand(8, 25), scan: rand(0, 20), vig: rand(30, 55), bloom: rand(4, 10), dither: rand(0, 20),
+      mode: 2, sat: rand(0, 60), shadow: hsl2rgb(rand(200, 260), 70, 6), high: hsl2rgb(rand(20, 70), 85, 70), bg: [4, 4, 7] };
+};
+const heatmapScene = (env) => {
+    return { ramp: pick(['blocks','dense','waves']), density: rand(90, 130), con: rand(1.6, 2.4), gamma: rand(0.85, 1.1),
+      toneW: 1, edgeW: rand(0.2, 0.5), brailleW: rand(0, 0.3), edgeGain: 9, relief: rand(0.3, 0.6),
+      lightA: rand(60, 120), grain: rand(10, 30), scan: 0, vig: rand(30, 55), bloom: rand(6, 14), dither: rand(10, 30),
+      mode: 3, sat: rand(90, 140), bg: [10, 2, 0] };
+};
+const RECIPES = [neonScene, phosphorScene, inkScene, reliefScene, brailleScene, heatmapScene];
+const DENSE_RAMP = '░▒▓█▓▒░▒▓██████';
+const MIN_RAMP = ' .:*#';
+
+let curRamp = RAMPS[0], tgtRamp = RAMPS[0];
+
+function newScene(env) {
+  // bias recipe by environment: dark scene -> neon/phosphor, bright -> ink, motion -> relief
+  let recipe;
+  const roll = Math.random();
+  if (env.motion > 0.5) recipe = pick([reliefScene, brailleScene]);
+  else if (roll < 0.2) recipe = inkScene;
+  else if (roll < 0.45) recipe = phosphorScene;
+  else if (roll < 0.7) recipe = neonScene;
+  else if (roll < 0.85) recipe = heatmapScene;
+  else recipe = reliefScene;
+  const p = recipe(env);
+  if (p.ramp === 'dense') { p.rampName = DENSE_RAMP; } else if (p.ramp === 'minimal') { p.rampName = MIN_RAMP; }
+  else { const r = RAMPS.find(r => r.name === p.ramp) || RAMPS[0]; p.rampName = r.s; }
+  tgtRamp = { name: p.ramp, s: p.rampName };
+
+  for (const k of ['density','con','gamma','toneW','edgeW','brailleW','edgeGain','relief','lightA','grain','scan','vig','bloom','dither','sat']) tgt[k] = p[k];
+  tgt.mode = p.mode; tgt.hue1 = p.hue1 || 120;
+  if (p.shadow) { tgt.shadowR = p.shadow[0]; tgt.shadowG = p.shadow[1]; tgt.shadowB = p.shadow[2]; }
+  if (p.high) { tgt.highR = p.high[0]; tgt.highG = p.high[1]; tgt.highB = p.high[2]; }
+  if (p.bg) { tgt.bgR = p.bg[0]; tgt.bgG = p.bg[1]; tgt.bgB = p.bg[2]; }
+  tgt.inkBg = p.mode === 4 ? 1 : 0;
+  if (cur.density === undefined) { for (const k of KEYS) cur[k] = tgt[k]; curRamp = tgtRamp; }
+
+  sceneDur = rand(14000, 26000);
+  sceneT0 = performance.now();
+  sceneName = pick(ADJ) + ' ' + pick(MOOD_NAMES[Math.floor(rand(0, MOOD_NAMES.length))]);
+  nowEl.textContent = '— ' + sceneName + ' —';
+  nowEl.style.opacity = 1;
+  setTimeout(() => nowEl.style.opacity = 0, 4200);
+}
+
+// scene energy analysis
+let envMotion = 0, prevLum = null;
+function analyze(lum, n) {
+  if (prevLum) {
+    let d = 0;
+    const step = Math.max(1, Math.floor(n / 2000));
+    let cnt = 0;
+    for (let i = 0; i < n; i += step) { d += Math.abs(lum[i] - prevLum[i]); cnt++; }
+    envMotion = envMotion * 0.9 + (d / cnt / 255) * 0.1;
+  }
+  prevLum = lum.slice ? lum.slice(0, Math.min(n, lum.length)) : null;
+}
+function env() { return { motion: envMotion * 6 }; }
+
+document.addEventListener('click', () => { sceneT0 = -1e9; });
+document.addEventListener('touchstart', () => { sceneT0 = -1e9; });
+
+// ---------- camera / mock ----------
+async function initCamera() {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }, audio: false });
+    video.srcObject = s; video.autoplay = true; video.playsInline = true;
+    video.addEventListener('playing', () => requestAnimationFrame(loop));
+  } catch (e) { console.error(e); nowEl.textContent = 'camera permission needed'; nowEl.style.opacity = 1; }
+}
+
+let SRC = null, last = 0, inited = false;
+function loop(ts) {
+  requestAnimationFrame(loop);
+  if (ts - last < 55) return; // ~18fps director pace
+  last = ts;
+  if (!SRC || SRC.paused || SRC.ended || !SRC.videoWidth) return;
+  if (!inited) { newScene(env()); inited = true; }
+  if (ts - sceneT0 > sceneDur) newScene(env());
+
+  // lerp params (5%/frame ease)
+  for (const k of KEYS) cur[k] += (tgt[k] - cur[k]) * 0.06;
+  // ramp: crossfade by instant swap at scene mid (ramps are discrete; swap when 50% through morph)
+  if (ts - sceneT0 > 300) curRamp = tgtRamp;
+
+  const cols = Math.max(30, cur.density | 0);
+  const aspect = SRC.videoWidth / SRC.videoHeight;
+  const rows = Math.max(2, Math.floor(cols / aspect));
+  buf.width = cols; buf.height = rows;
+  bctx.translate(cols, 0); bctx.scale(-1, 1);
+  bctx.drawImage(SRC, 0, 0, cols, rows);
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
+  const px = bctx.getImageData(0, 0, cols, rows).data;
+
+  const n = cols * rows;
+  const lum = new Float32Array(n);
+  for (let i = 0, p = 0; i < n; i++, p += 4) {
+    let L = (0.299 * px[p] + 0.587 * px[p+1] + 0.114 * px[p+2]) / 255;
+    L = Math.max(0, Math.min(1, (L - 0.5) * cur.con + 0.5));
+    lum[i] = Math.pow(L, cur.gamma) * 255;
+  }
+  analyze(lum, n);
+  if (cur.dither > 1) {
+    const bayer = [0, 2, 3, 1];
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++)
+      lum[y*cols+x] += (bayer[(y&1)*2+(x&1)] / 4 - 0.5) * cur.dither;
+  }
+
+  const fh = Math.max(7, Math.floor(window.innerHeight / rows));
+  const fw = Math.max(4, fh * 0.6);
+  cv.width = cols * fw; cv.height = rows * fh;
+  const ink = cur.mode > 3.5;
+  ctx.fillStyle = ink ? 'rgb(242,239,230)' : `rgb(${cur.bgR|0},${cur.bgG|0},${cur.bgB|0})`;
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.font = `${(fh * 0.98).toFixed(1)}px 'Courier New', monospace`;
+  ctx.textBaseline = 'top';
+
+  const ramp = curRamp.s, rl = ramp.length;
+  const lx = Math.cos(cur.lightA * Math.PI / 180), ly = Math.sin(cur.lightA * Math.PI / 180);
+  const DIRS = [['·','─','━','═','█'], ['·','╱','╱','▚','▓'], ['·','│','┃','║','█'], ['·','╲','╲','▞','▓']];
+  const BMAP = [0x01,0x08,0x02,0x10,0x04,0x20,0x40,0x80];
+  const BX = [0,0,0,0,1,1,1,1], BY = [0,1,2,3,0,1,2,3];
+
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const i = y * cols + x, p = i * 4;
+      const xm = x>0?x-1:x, xp = x<cols-1?x+1:x, ym = y>0?y-1:y, yp = y<rows-1?y+1:y;
+      const L = lum[i];
+      const g00=lum[ym*cols+xm], g01=lum[ym*cols+x], g02=lum[ym*cols+xp];
+      const g10=lum[y*cols+xm], g12=lum[y*cols+xp];
+      const g20=lum[yp*cols+xm], g21=lum[yp*cols+x], g22=lum[yp*cols+xp];
+      const gxv=(g02+2*g12+g22)-(g00+2*g10+g20), gyv=(g20+2*g21+g22)-(g00+2*g01+g02);
+      const mag = Math.sqrt(gxv*gxv+gyv*gyv)/1020;
+      const mean = (g00+g01+g02+g10+g12+g20+g21+g22)/8;
+      const varr = ((g00-mean)**2+(g01-mean)**2+(g02-mean)**2+(g10-mean)**2+(g12-mean)**2+(g20-mean)**2+(g21-mean)**2+(g22-mean)**2)/8/4000;
+
+      let ch = null, cr = px[p], cg = px[p+1], cb = px[p+2];
+
+      if (cur.edgeW > 0.05 && mag > 0.04) {
+        const ang = (Math.atan2(gyv, gxv) * 180 / Math.PI + 360) % 180;
+        let fam = DIRS[0];
+        if (ang >= 22.5 && ang < 67.5) fam = DIRS[1];
+        else if (ang >= 67.5 && ang < 112.5) fam = DIRS[2];
+        else if (ang >= 112.5 && ang < 157.5) fam = DIRS[3];
+        ch = fam[Math.min(4, Math.floor(mag * 9 * (cur.edgeGain/8) * (0.5 + cur.relief)))];
+        const lit = (gxv*lx + gyv*ly) / (mag*1020 + 1);
+        const boost = cur.relief * lit * 90;
+        cr += boost; cg += boost; cb += boost;
+      } else if (cur.brailleW > 0.08 && varr > (1 - cur.brailleW) * 0.4 && mag < 0.12) {
+        let dots = 0;
+        for (let d = 0; d < 8; d++) {
+          const v = lum[Math.min(rows-1, ym + BY[d]*Math.max(1,yp-ym)/3|0) * cols + Math.min(cols-1, x + BX[d])];
+          if (v > mean + (0.5 - cur.brailleW) * 40) dots |= BMAP[d];
+        }
+        ch = dots ? String.fromCharCode(0x2800 + dots) : null;
+      }
+      if (!ch && cur.toneW > 0.05) {
+        const t = Math.max(0, Math.min(0.999, L / 255));
+        ch = ramp[Math.floor((1 - t) * (rl - 1))];
+        if (ch === ' ') ch = null;
+      }
+      if (!ch) continue;
+
+      // color — lerped palette
+      const L2 = L;
+      if (cur.mode < 0.5) {
+        const sat = cur.sat / 100, gray = 0.299*cr + 0.587*cg + 0.114*cb;
+        cr = gray + (cr-gray)*sat; cg = gray + (cg-gray)*sat; cb = gray + (cb-gray)*sat;
+      } else if (cur.mode < 1.5) {
+        [cr, cg, cb] = hsl2rgb(cur.hue1, Math.min(100, cur.sat*0.8), Math.min(92, L2*0.85 + 4));
+      } else if (cur.mode < 2.5) {
+        const t = Math.max(0.12, Math.min(1, L2/255)); // floor: shadows stay visible
+        cr = cur.shadowR + (cur.highR-cur.shadowR)*t;
+        cg = cur.shadowG + (cur.highG-cur.shadowG)*t;
+        cb = cur.shadowB + (cur.highB-cur.shadowB)*t;
+        cr = Math.max(cr, 26); cg = Math.max(cg, 26); cb = Math.max(cb, 30);
+      } else if (cur.mode < 3.5) {
+        [cr, cg, cb] = hsl2rgb((300 - L2/255*300 + 360) % 360, 85, Math.min(70, 20 + L2*0.22));
+      } else {
+        const v = 255 - L2; cr = cg = cb = v;
+      }
+      if (cur.bloom > 1 && L2 > 200) { ctx.shadowColor = `rgba(${cr|0},${cg|0},${cb|0},0.9)`; ctx.shadowBlur = cur.bloom; } else ctx.shadowBlur = 0;
+      ctx.fillStyle = `rgb(${Math.max(0,Math.min(255,cr))|0},${Math.max(0,Math.min(255,cg))|0},${Math.max(0,Math.min(255,cb))|0})`;
+      ctx.fillText(ch, x * fw, y * fh);
+    }
+  }
+  ctx.shadowBlur = 0;
+  if (cur.scan > 1) {
+    ctx.fillStyle = `rgba(0,0,0,${cur.scan/140})`;
+    for (let sy = 0; sy < cv.height; sy += 3) ctx.fillRect(0, sy, cv.width, 1);
+  }
+  if (cur.grain > 1) {
+    ctx.fillStyle = `rgba(255,255,255,${cur.grain/900})`;
+    for (let gy2 = 0; gy2 < 200; gy2++) ctx.fillRect(Math.random()*cv.width, Math.random()*cv.height, 1.5, 1.5);
+  }
+  if (cur.vig > 1) {
+    const vg = ctx.createRadialGradient(cv.width/2, cv.height/2, cv.height*0.35, cv.width/2, cv.height/2, cv.height*0.85);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, `rgba(0,0,0,${cur.vig/110})`);
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, cv.width, cv.height);
+  }
+}
+
+if (MOCK) {
+  const m = document.createElement('canvas'); m.width = 640; m.height = 480;
+  m.videoWidth = 640; m.videoHeight = 480; m.paused = false; m.ended = false;
+  const mc = m.getContext('2d'); let t = 0;
+  (function dm() {
+    const w = m.width, h = m.height;
+    mc.fillStyle = '#141414'; mc.fillRect(0, 0, w, h);
+    const lxp = w/2 + Math.cos(t/40)*w/3, lyp = h/2 + Math.sin(t/40)*h/3;
+    const rg = mc.createRadialGradient(lxp, lyp, 10, lxp, lyp, h*0.85);
+    rg.addColorStop(0, '#f5eede'); rg.addColorStop(1, '#0a0a0a');
+    mc.fillStyle = rg; mc.fillRect(0, 0, w, h);
+    const bx = w/2 + Math.sin(t/25)*w/5, by = h/2 + Math.cos(t/17)*h/6;
+    const sg = mc.createRadialGradient(bx-30, by-30, 5, bx, by, 90);
+    sg.addColorStop(0, '#fff'); sg.addColorStop(0.6, '#9a7a55'); sg.addColorStop(1, '#101010');
+    mc.fillStyle = sg; mc.beginPath(); mc.arc(bx, by, 90, 0, Math.PI*2); mc.fill();
+    mc.save(); mc.translate(w/2, h/2); mc.rotate(t/90);
+    mc.fillStyle = '#e8e8e8'; mc.fillRect(-230, -14, 460, 28);
+    mc.rotate(Math.PI/4); mc.fillStyle = '#989898'; mc.fillRect(-270, -10, 540, 20);
+    mc.restore();
+    for (let cy = 0; cy < 8; cy++) for (let cx = 0; cx < 8; cx++)
+      if ((cx + cy + (t>>3)) % 2) { mc.fillStyle = '#d8d8d8'; mc.fillRect(470+cx*16, 300+cy*16, 16, 16); }
+    t++;
+    requestAnimationFrame(dm);
+  })();
+  SRC = m;
+  requestAnimationFrame(loop);
+} else {
+  SRC = video;
+  initCamera();
+}
+</script>
+</body>
+</html>

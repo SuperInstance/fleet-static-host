@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ASCII Mirror II — The Sculptor</title>
+<style>
+ * { box-sizing: border-box; margin: 0; padding: 0; }
+ body, html {
+ width: 100%; height: 100%;
+ background-color: #030304;
+ color: #cfcfcf;
+ font-family: 'Courier New', Courier, monospace;
+ overflow: hidden;
+ display: flex; flex-direction: column;
+ align-items: center; justify-content: center;
+ }
+ #canvas-container { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+ canvas { image-rendering: auto; max-width: 100%; max-height: 100%; }
+ #ui-panel {
+ position: absolute; bottom: 16px;
+ background: rgba(8, 8, 12, 0.88);
+ border: 1px solid #2a2a35;
+ padding: 10px 18px; border-radius: 10px;
+ display: flex; gap: 18px; align-items: center; flex-wrap: wrap; justify-content: center;
+ z-index: 10; max-width: 96vw;
+ }
+ label { font-size: 11px; color: #8a8a99; text-transform: uppercase; letter-spacing: 1px; display: block; }
+ input[type="range"] { accent-color: #7f5fff; background: #16161f; width: 110px; }
+ #title { position: absolute; top: 14px; left: 18px; font-size: 12px; letter-spacing: 3px; color: #5a5a72; z-index: 10; }
+</style>
+</head>
+<body>
+<div id="title">SCII MIRROR II — THE SCULPTOR</div>
+<div id="canvas-container"><canvas id="ascii-canvas"></canvas></div>
+<div id="ui-panel">
+ <div><label for="resolution">Density</label><input type="range" id="resolution" min="40" max="160" value="100"></div>
+ <div><label for="relief">Relief</label><input type="range" id="relief" min="0" max="100" value="55"></div>
+ <div><label for="light">Light Angle</label><input type="range" id="light" min="0" max="360" value="315"></div>
+ <div><label for="detail">Braille Detail</label><input type="range" id="detail" min="0" max="100" value="45"></div>
+</div>
+
+<script>
+// ============================================================
+// ASCII MIRROR II — THE SCULPTOR
+// Characters as SHAPES, not pixels. Three-way bivariate pick:
+//   flat tone  -> 70-level density ramp (creative glyph ramp)
+//   edges      -> directional box/diagonal glyphs chosen by Sobel
+//                 angle, weighted by magnitude, emboss-lit by a
+//                 virtual light (relief = the 3D pop)
+//   fine detail-> braille 2x4 subpixel dots (8 dots per cell)
+// Scout sources baked in: gradient-direction mapping (emboss
+// technique), braille patterns U+2800-28FF for high-detail
+// shading, character-shape-first rendering (Jan 2026 deep-dive).
+// ============================================================
+
+const MOCK = new URLSearchParams(location.search).has('mock');
+let video;
+const bufferCanvas = document.createElement('canvas');
+const bufferCtx = bufferCanvas.getContext('2d', { willReadFrequently: true });
+const outputCanvas = document.getElementById('ascii-canvas');
+const outputCtx = outputCanvas.getContext('2d');
+
+const resSlider = document.getElementById('resolution');
+const reliefSlider = document.getElementById('relief');
+const lightSlider = document.getElementById('light');
+const detailSlider = document.getElementById('detail');
+
+{
+ const QS = new URLSearchParams(location.search);
+ const qr = parseInt(QS.get('res')); if (qr) resSlider.value = qr;
+ const qf = parseInt(QS.get('relief')); if (!isNaN(qf)) reliefSlider.value = qf;
+ const ql = parseInt(QS.get('light')); if (!isNaN(ql)) lightSlider.value = ql;
+ const qd = parseInt(QS.get('detail')); if (!isNaN(qd)) detailSlider.value = qd;
+}
+
+// 70-level ramp — smooth tonal range for flat areas
+const TONE_RAMP = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
+// Directional glyph families, index by angle bucket; heavier weight = stronger edge
+const DIRS = [
+ { a: 0, fam: ['·', '─', '━', '═', '█'] },        // horizontal edge
+ { a: 45, fam: ['·', '╱', '╱', '▚', '▓'] },       // NE-SW diagonal
+ { a: 90, fam: ['·', '│', '┃', '║', '█'] },       // vertical edge
+ { a: 135, fam: ['·', '╲', '╲', '▞', '▓'] }       // NW-SE diagonal
+];
+// Braille dot bit layout: cell is 2px wide, 4px tall. bit order (x,y):
+const BRAILLE_BITS = [[0,0x01],[0,0x08],[1,0x02],[1,0x10],[2,0x04],[2,0x20],[3,0x40],[3,0x80]];
+// (row-major: bits 0-3 = left column rows 0-3, bits 4-7... standard: 0x01,0x02 are top two of left col)
+const BRAILLE_MAP = [0x01,0x08,0x02,0x10,0x04,0x20,0x40,0x80]; // dot order per [x,y] below
+const BRAILLE_XY = [[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2],[1,3]];
+const BRAILLE_BASE = 0x2800;
+
+function luminance(r, g, b) { return 0.299 * r + 0.587 * g + 0.114 * b; }
+
+async function initCamera() {
+ try {
+ const stream = await navigator.mediaDevices.getUserMedia({
+ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
+ audio: false
+ });
+ video.srcObject = stream;
+ video.autoplay = true;
+ video.playsInline = true;
+ video.addEventListener('playing', () => requestAnimationFrame(renderLoop));
+ } catch (err) {
+ console.error("Camera access denied or unavailable:", err);
+ alert("Please grant webcam permissions to view the sculpted matrix.");
+ }
+}
+
+function renderLoop() {
+ if (video.paused || video.ended) return;
+
+ const cols = parseInt(resSlider.value);
+ const aspectRatio = (video.videoWidth || video.width) / (video.videoHeight || video.height);
+ const rows = Math.floor(cols / aspectRatio);
+
+ bufferCanvas.width = cols;
+ bufferCanvas.height = rows;
+ bufferCtx.translate(cols, 0);
+ bufferCtx.scale(-1, 1);
+ bufferCtx.drawImage(video, 0, 0, cols, rows);
+ bufferCtx.setTransform(1, 0, 0, 1, 0, 0);
+
+ const img = bufferCtx.getImageData(0, 0, cols, rows);
+ const px = img.data;
+
+ // grayscale + storage for gradient pass
+ const lum = new Float32Array(cols * rows);
+ for (let i = 0, p = 0; i < lum.length; i++, p += 4) lum[i] = luminance(px[p], px[p+1], px[p+2]);
+
+ const fontHeight = Math.max(8, Math.floor(window.innerHeight / rows));
+ const fontWidth = fontHeight * 0.6;
+ outputCanvas.width = cols * fontWidth;
+ outputCanvas.height = rows * fontHeight;
+ outputCtx.fillStyle = '#030304';
+ outputCtx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+ outputCtx.textBaseline = 'top';
+
+ const relief = parseInt(reliefSlider.value) / 100;      // 0..1 mix of shape-over-tone
+ const lightA = parseInt(lightSlider.value) * Math.PI / 180;
+ const lx = Math.cos(lightA), ly = Math.sin(lightA);
+ const brailleThresh = parseInt(detailSlider.value) / 100; // 0..1 sensitivity
+
+ for (let y = 0; y < rows; y++) {
+ for (let x = 0; x < cols; x++) {
+ const i = y * cols + x;
+ const p = i * 4;
+ const r = px[p], g = px[p+1], b = px[p+2];
+
+ // Sobel gradient (clamped sampling)
+ const xm = x > 0 ? x - 1 : x, xp = x < cols - 1 ? x + 1 : x;
+ const ym = y > 0 ? y - 1 : y, yp = y < rows - 1 ? y + 1 : y;
+ const l00 = lum[ym*cols+xm], l01 = lum[ym*cols+x], l02 = lum[ym*cols+xp];
+ const l10 = lum[y*cols+xm],               l12 = lum[y*cols+xp];
+ const l20 = lum[yp*cols+xm], l21 = lum[yp*cols+x], l22 = lum[yp*cols+xp];
+ const gxv = (l02 + 2*l12 + l22) - (l00 + 2*l10 + l20);
+ const gyv = (l20 + 2*l21 + l22) - (l00 + 2*l01 + l02);
+ const mag = Math.sqrt(gxv*gxv + gyv*gyv) / 1020; // normalize 0..~1
+ const mean = (l00+l01+l02+l10+l12+l20+l21+l22) / 8;
+
+ // local variance proxy (detail detector)
+ const varr = ((l00-mean)**2 + (l01-mean)**2 + (l02-mean)**2 + (l10-mean)**2 +
+ (l12-mean)**2 + (l20-mean)**2 + (l21-mean)**2 + (l22-mean)**2) / 8 / 4000;
+
+ let ch, cr = r, cg = g, cb = b;
+
+ if (mag < 0.04 && varr < brailleThresh * 0.5) {
+ // FLAT: pure tone from the 70-level ramp
+ const t = Math.min(0.999, Math.max(0, mean / 255));
+ ch = TONE_RAMP[Math.floor((1 - t) * (TONE_RAMP.length - 1))];
+ if (ch === ' ') { ch = null; }
+ } else if (varr >= brailleThresh * 0.5 && mag < 0.12) {
+ // FINE DETAIL: braille 2x4 subpixels thresholded around local mean
+ let dots = 0;
+ for (let d = 0; d < 8; d++) {
+ const sxx = x + BRAILLE_XY[d][0];
+ const syy = ym + BRAILLE_XY[d][1];
+ const v = lum[Math.min(rows-1, syy) * cols + Math.min(cols-1, sxx)];
+ if (v > mean + (0.5 - brailleThresh) * 40) dots |= BRAILLE_MAP[d];
+ }
+ ch = dots === 0 ? null : String.fromCharCode(BRAILLE_BASE + dots);
+ } else {
+ // EDGE: bivariate pick — angle bucket + magnitude weight, emboss-lit
+ const ang = (Math.atan2(gyv, gxv) * 180 / Math.PI + 360) % 180;
+ let fam = DIRS[0].fam;
+ if (ang >= 22.5 && ang < 67.5) fam = DIRS[1].fam;
+ else if (ang >= 67.5 && ang < 112.5) fam = DIRS[2].fam;
+ else if (ang >= 112.5 && ang < 157.5) fam = DIRS[3].fam;
+ const w = Math.min(4, Math.floor(mag * 9 * (0.5 + relief)));
+ ch = fam[w];
+ // virtual light: emboss tint on the gradient's lit side
+ const nDot = (gxv * lx + gyv * ly);
+ const lit = nDot / (mag * 1020 + 1);
+ const boost = relief * lit * 90;
+ cr = Math.max(0, Math.min(255, r + boost));
+ cg = Math.max(0, Math.min(255, g + boost));
+ cb = Math.max(0, Math.min(255, b + boost));
+ }
+
+ if (ch) {
+ outputCtx.fillStyle = `rgb(${cr|0}, ${cg|0}, ${cb|0})`;
+ outputCtx.fillText(ch, x * fontWidth, y * fontHeight);
+ }
+ }
+ }
+ requestAnimationFrame(renderLoop);
+}
+
+// MOCK scene: sculptural subject — sphere lit from an angle + planes + bars
+if (MOCK) {
+ video = document.createElement('canvas');
+ video.width = 640; video.height = 480;
+ video.videoWidth = 640; video.videoHeight = 480;
+ video.paused = false; video.ended = false;
+ const mctx = video.getContext('2d');
+ let t = 0;
+ (function drawMock() {
+ const w = video.width, h = video.height;
+ mctx.fillStyle = '#101010'; mctx.fillRect(0, 0, w, h);
+ // moving light source (tests Light Angle response)
+ const lx2 = w/2 + Math.cos(t/40) * w/3, ly2 = h/2 + Math.sin(t/40) * h/3;
+ const rg = mctx.createRadialGradient(lx2, ly2, 10, lx2, ly2, h*0.8);
+ rg.addColorStop(0, '#f0e8d8'); rg.addColorStop(1, '#0a0a0a');
+ mctx.fillStyle = rg; mctx.fillRect(0, 0, w, h);
+ // sculpted sphere with strong shading gradient (the relief test)
+ const bx = w/2 + Math.sin(t/25) * w/5, by = h/2 + Math.cos(t/17) * h/6;
+ const sg = mctx.createRadialGradient(bx - 30, by - 30, 5, bx, by, 90);
+ sg.addColorStop(0, '#ffffff'); sg.addColorStop(0.6, '#806a50'); sg.addColorStop(1, '#101010');
+ mctx.fillStyle = sg; mctx.beginPath(); mctx.arc(bx, by, 90, 0, Math.PI*2); mctx.fill();
+ // rotated bars with hard edges (directional glyph test)
+ mctx.save();
+ mctx.translate(w/2, h/2); mctx.rotate(t/90);
+ mctx.fillStyle = '#e0e0e0'; mctx.fillRect(-220, -14, 440, 28);
+ mctx.rotate(Math.PI/4);
+ mctx.fillStyle = '#909090'; mctx.fillRect(-260, -10, 520, 20);
+ mctx.restore();
+ // fine checkerboard (braille detail test)
+ for (let cy = 0; cy < 8; cy++) for (let cx = 0; cx < 8; cx++)
+ if ((cx + cy + (t>>3)) % 2) { mctx.fillStyle = '#d0d0d0'; mctx.fillRect(480 + cx*14, 300 + cy*14, 14, 14); }
+ t++;
+ requestAnimationFrame(drawMock);
+ })();
+ requestAnimationFrame(renderLoop);
+} else {
+ video = document.createElement('video');
+ initCamera();
+}
+</script>
+</body>
+</html>
