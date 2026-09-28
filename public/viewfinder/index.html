@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chiaroscuro — The Viewfinder</title>
+<style>
+  :root {
+    --bg: #050505; --fg: #00ff9c; --panel: #0a0a0f;
+    --border: #1c1c28; --muted: #6b6b80; --accent: #8f7fff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: 'Courier New', Courier, monospace;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 11px 16px; border-bottom: 1px solid var(--border); background: #07070c;
+  }
+  header .brand { font-weight: bold; letter-spacing: 2px; font-size: 14px; }
+  header .brand span { color: var(--muted); font-weight: normal; }
+  button {
+    background: #10101c; color: var(--fg); border: 1px solid var(--border);
+    padding: 7px 13px; border-radius: 6px; cursor: pointer;
+    font-family: inherit; font-size: 12px; letter-spacing: 1px;
+  }
+  button:hover { border-color: var(--accent); }
+  button.active { background: #1a1030; border-color: var(--accent); }
+  button.rec { border-color: #ff5f7a; color: #ff5f7a; }
+  button.rec.on { background: #2a0d16; }
+  .spacer { flex: 1; }
+  label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 7px; }
+  input[type=range] { accent-color: #00ff9c; }
+  input[type=file] { display: none; }
+  main {
+    flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+    background: var(--border); min-height: 0;
+  }
+  .panel { background: var(--panel); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .panel .cap {
+    font-size: 10px; letter-spacing: 3px; color: var(--muted);
+    padding: 8px 12px; border-bottom: 1px solid var(--border); text-transform: uppercase;
+  }
+  .panel .body { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
+  #src-video { max-width: 100%; max-height: 100%; object-fit: contain; }
+  #ascii-canvas { image-rendering: pixelated; }
+  footer {
+    display: flex; gap: 10px; align-items: center; padding: 9px 16px; flex-wrap: wrap;
+    border-top: 1px solid var(--border); background: #07070c;
+  }
+  #status { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">CHIAROSCURO <span>· the viewfinder · door Ⅴ</span></div>
+    <button id="btn-cam" class="active">Camera</button>
+    <button id="btn-screen">Screen</button>
+    <button id="btn-file">Video file</button>
+    <div class="spacer"></div>
+    <label>Density <input type="range" id="res" min="40" max="160" value="90"></label>
+    <label>Contrast <input type="range" id="contrast" min="10" max="50" value="25"></label>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div class="cap">original</div>
+      <div class="body"><video id="src-video" autoplay playsinline muted></video></div>
+    </div>
+    <div class="panel">
+      <div class="cap">rendered</div>
+      <div class="body" id="rendered-body"><canvas id="ascii-canvas"></canvas></div>
+    </div>
+  </main>
+
+  <footer>
+    <button id="btn-record" class="rec">● Record rendered</button>
+    <button id="btn-copy">Copy text frame</button>
+    <button id="btn-stop">Stop source</button>
+    <span id="status">awaiting source…</span>
+  </footer>
+
+  <input type="file" id="file-input" accept="video/*">
+
+  <script>
+  // ---- shared render pipeline (same ASCII map as the Mirror) ----
+  const ASCII_MAP = " .:-=+*#%@@@@@@@@";
+  const MAP_LEN = ASCII_MAP.length;
+  const video = document.getElementById('src-video');
+  const bufferCanvas = document.createElement('canvas');
+  const bufferCtx = bufferCanvas.getContext('2d', { willReadFrequently: true });
+  const outCanvas = document.getElementById('ascii-canvas');
+  const outCtx = outCanvas.getContext('2d');
+  const resSlider = document.getElementById('res');
+  const contrastSlider = document.getElementById('contrast');
+  const status = document.getElementById('status');
+  const rBody = document.getElementById('rendered-body');
+
+  let currentStream = null;
+  let lastText = '';   // last rendered plain-text frame (for copy)
+
+  function setStatus(s) { status.textContent = s; }
+  function setActive(btn) {
+    ['btn-cam','btn-screen','btn-file'].forEach(id => document.getElementById(id).classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+
+  function stopStream() {
+    if (currentStream) { currentStream.getTracks().forEach(t => t.stop()); currentStream = null; }
+    video.srcObject = null;
+  }
+
+  async function useStream(stream, label, btn) {
+    stopStream();
+    currentStream = stream;
+    video.srcObject = stream;
+    video.loop = true;
+    await video.play().catch(()=>{});
+    setStatus(label + ' — rendering');
+    setActive(btn);
+  }
+
+  async function pickCamera() {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { width:{ideal:640}, height:{ideal:480} }, audio: false });
+      await useStream(s, 'camera', document.getElementById('btn-cam'));
+    } catch (e) { setStatus('camera denied: ' + e.message); }
+  }
+
+  async function pickScreen() {
+    try {
+      // The browser's native picker IS the "selection box": the user chooses a
+      // window / tab / whole screen. The captured surface keeps rendering even
+      // when this tab is backgrounded, so recording continues off-focus.
+      const s = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'window' }, audio: false });
+      s.getVideoTracks()[0].addEventListener('ended', () => setStatus('screen share ended'));
+      await useStream(s, 'screen', document.getElementById('btn-screen'));
+    } catch (e) { setStatus('screen capture cancelled: ' + e.message); }
+  }
+
+  async function pickFile(file) {
+    const url = URL.createObjectURL(file);
+    stopStream();
+    video.srcObject = null;
+    video.src = url;
+    video.loop = true;
+    await video.play().catch(()=>{});
+    setStatus('video: ' + file.name + ' — rendering');
+    setActive(document.getElementById('btn-file'));
+  }
+
+  function renderLoop() {
+    if (video.readyState < 2) { requestAnimationFrame(renderLoop); return; }
+    const cols = parseInt(resSlider.value);
+    const w = video.videoWidth || 640, h = video.videoHeight || 480;
+    const rows = Math.max(2, Math.floor(cols * h / w));
+    bufferCanvas.width = cols; bufferCanvas.height = rows;
+    bufferCtx.drawImage(video, 0, 0, cols, rows);
+    const img = bufferCtx.getImageData(0, 0, cols, rows);
+    const px = img.data;
+
+    // size the char cell to fit the rendered panel, preserving monospace ratio
+    const availW = rBody.clientWidth || 400, availH = rBody.clientHeight || 300;
+    let fontH = Math.floor(availH / rows);
+    let fontW = fontH * 0.6;
+    if (fontW * cols > availW) { fontW = availW / cols; fontH = fontW / 0.6; }
+    if (fontH < 3) fontH = 3;
+    fontW = fontH * 0.6;
+
+    outCanvas.width = Math.floor(cols * fontW);
+    outCanvas.height = Math.floor(rows * fontH);
+    outCtx.fillStyle = '#050505';
+    outCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+    outCtx.font = `bold ${fontH}px 'Courier New', monospace`;
+    outCtx.textBaseline = 'top';
+
+    const cf = parseInt(contrastSlider.value) / 10;
+    let text = '';
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const i = (y * cols + x) * 4;
+        const r = px[i], g = px[i+1], b = px[i+2];
+        let lum = 0.299*r + 0.587*g + 0.114*b;
+        if (cf !== 1.0) { lum = ((lum/255 - 0.5) * cf + 0.5) * 255; lum = Math.max(0, Math.min(255, lum)); }
+        const c = ASCII_MAP[Math.floor((lum/255) * (MAP_LEN - 1))];
+        text += c;
+        outCtx.fillStyle = `rgb(${r},${g},${b})`;
+        outCtx.fillText(c, x * fontW, y * fontH);
+      }
+      text += '\n';
+    }
+    lastText = text;
+    requestAnimationFrame(renderLoop);
+  }
+
+  // ---- record the RENDERED panel via canvas.captureStream ----
+  let recorder = null, recChunks = [];
+  function toggleRecord() {
+    const btn = document.getElementById('btn-record');
+    if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
+    const stream = outCanvas.captureStream(30);
+    recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    recChunks = [];
+    recorder.ondataavailable = e => { if (e.data.size) recChunks.push(e.data); };
+    recorder.onstop = () => {
+      const blob = new Blob(recChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'chiaroscuro-viewfinder.webm';
+      a.click();
+      setStatus('saved rendered recording (webm)');
+      btn.classList.remove('on');
+    };
+    recorder.start();
+    btn.classList.add('on');
+    setStatus('recording rendered panel…');
+  }
+
+  function copyText() {
+    if (!lastText) { setStatus('nothing rendered yet'); return; }
+    navigator.clipboard.writeText(lastText).then(
+      () => setStatus('text frame copied'),
+      () => setStatus('clipboard blocked'));
+  }
+
+  document.getElementById('btn-cam').onclick = pickCamera;
+  document.getElementById('btn-screen').onclick = pickScreen;
+  document.getElementById('btn-file').onclick = () => document.getElementById('file-input').click();
+  document.getElementById('file-input').onchange = e => { if (e.target.files[0]) pickFile(e.target.files[0]); };
+  document.getElementById('btn-record').onclick = toggleRecord;
+  document.getElementById('btn-copy').onclick = copyText;
+  document.getElementById('btn-stop').onclick = () => { stopStream(); video.src = ''; setStatus('stopped'); };
+
+  renderLoop();
+  pickCamera();
+  </script>
+</body>
+</html>
